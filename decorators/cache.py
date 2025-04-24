@@ -54,12 +54,12 @@ def redis_cache(expire_time: int = 60):
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
-            result = redis_client.get(key)
-            if result:
-                return result
-            result = func(*args, **kwargs)
-            redis_client.setex(key, expire_time, result)
-            return result
+            # result = redis_client.get(key)
+            # if result:
+            #     return result
+            # result = func(*args, **kwargs)
+            # redis_client.setex(key, expire_time, result)
+            # return result
 
         return wrapper
 
