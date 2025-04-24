@@ -1,0 +1,18 @@
+[project]
+name = "titan"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "PySuper",email = "small.spider.p@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "loguru (>=0.5.3,<1.0.0)",
+    "poetry-core (>=2.0.0,<3.0.0)",
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
