@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频流与数据实时监控</title>
+  <style>
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .video-container {
+      flex: 1;
+      min-width: 320px;
+      background-color: #000;
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .video-frame {
+      width: 100%;
+      display: block;
+    }
+
+    .data-container {
+      flex: 1;
+      min-width: 320px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    .controls {
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn:hover {
+      background-color: #45a049;
+    }
+
+    .status {
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+      background-color: #e8f5e9;
+      display: none;
+    }
+
+    .video-info {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #f0f8ff;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .progress-bar {
+      height: 20px;
+      background-color: #e0e0e0;
+      border-radius: 10px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 100%;
+      background-color: #4CAF50;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .video-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .video-btn {
+      padding: 6px 12px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .video-btn:hover {
+      background-color: #0b7dda;
+    }
+
+    .video-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>视频流与数据实时监控</h1>
+
+  <div class="controls">
+    <button id="connectBtn" class="btn">连接 WebSocket</button>
+    <button id="disconnectBtn" class="btn" disabled>断开连接</button>
+    <button id="startVideoBtn" class="btn" disabled>开始视频流</button>
+    <button id="testDataBtn" class="btn" disabled>接收测试数据</button>
+    <button id="uploadBtn" class="btn">上传视频</button>
+  </div>
+
+  <div class="status" id="statusBar"></div>
+
+  <!-- 添加文件上传表单，默认隐藏 -->
+  <div class="upload-form" id="uploadForm" style="display: none; margin: 15px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #e0e0e0;">
+    <h3 style="margin-top: 0;">上传视频文件</h3>
+    <input type="file" id="videoFile" accept="video/*" style="margin-bottom: 10px; display: block;">
+    <div class="upload-controls" style="display: flex; gap: 10px;">
+      <button id="submitUploadBtn" class="btn">确认上传</button>
+      <button id="cancelUploadBtn" class="btn" style="background-color: #f44336;">取消</button>
+    </div>
+    <div class="upload-progress" style="margin-top: 10px; display: none;">
+      <div style="margin-bottom: 5px;">上传进度: <span id="uploadProgressText">0%</span></div>
+      <div class="progress-bar">
+        <div class="progress" id="uploadProgressBar" style="width: 0%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="video-container">
+      <img id="videoFrame" class="video-frame" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="视频帧">
+      <div class="loading" id="loadingIndicator">等待连接...</div>
+      <div class="progress-bar">
+        <div class="progress" id="progressBar"></div>
+      </div>
+      <div class="video-controls">
+        <button id="pauseBtn" class="video-btn" disabled>暂停</button>
+        <button id="resumeBtn" class="video-btn" disabled>播放</button>
+        <button id="stopBtn" class="video-btn" disabled>停止</button>
+      </div>
+    </div>
+
+    <div class="data-container">
+      <div class="video-info" id="videoInfo">还未收到视频信息</div>
+      <h3>实时数据</h3>
+      <table>
+        <thead>
+        <tr>
+          <th>帧号</th>
+          <th>时间戳</th>
+          <th>类型</th>
+          <th>状态</th>
+          <th>详情</th>
+        </tr>
+        </thead>
+        <tbody id="dataTable">
+        <tr>
+          <td colspan="5" style="text-align: center;">等待数据...</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 全局变量
+  let ws = null;
+  let frameCount = 0;
+  let totalFrames = 0;
+  let isConnected = false;
+  let isPlaying = false;
+  let isPaused = false;
+
+  // DOM 元素
+  const videoFrame = document.getElementById('videoFrame');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  const progressBar = document.getElementById('progressBar');
+  const videoInfo = document.getElementById('videoInfo');
+  const dataTable = document.getElementById('dataTable');
+  const statusBar = document.getElementById('statusBar');
+  const connectBtn = document.getElementById('connectBtn');
+  const disconnectBtn = document.getElementById('disconnectBtn');
+  const startVideoBtn = document.getElementById('startVideoBtn');
+  const testDataBtn = document.getElementById('testDataBtn');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resumeBtn = document.getElementById('resumeBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const uploadForm = document.getElementById('uploadForm');
+  const videoFile = document.getElementById('videoFile');
+  const submitUploadBtn = document.getElementById('submitUploadBtn');
+  const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+  const uploadProgressBar = document.getElementById('uploadProgressBar');
+  const uploadProgressText = document.getElementById('uploadProgressText');
+  const uploadProgress = document.querySelector('.upload-progress');
+
+  // 显示状态消息
+  function showStatus(message, isError = false) {
+    statusBar.textContent = message;
+    statusBar.style.display = 'block';
+    statusBar.style.backgroundColor = isError ? '#ffebee' : '#e8f5e9';
+    console.log(isError ? `错误: ${message}` : message);
+  }
+
+  // 清空表格
+  function clearTable() {
+    dataTable.innerHTML = '<tr><td colspan="5" style="text-align: center;">等待数据...</td></tr>';
+  }
+
+  // 添加行到表格
+  function addTableRow(frameNumber, timestamp, type, status, details) {
+    // 如果表格只有一行且包含"等待数据"，则清空表格
+    if (dataTable.rows.length === 1 && dataTable.rows[0].cells[0].colSpan === 5) {
+      dataTable.innerHTML = '';
+    }
+
+    // 限制表格最大行数为10，防止性能问题
+    if (dataTable.rows.length >= 10) {
+      dataTable.deleteRow(0);
+    }
+
+    const row = dataTable.insertRow();
+
+    const cell1 = row.insertCell(0);
+    const cell2 = row.insertCell(1);
+    const cell3 = row.insertCell(2);
+    const cell4 = row.insertCell(3);
+    const cell5 = row.insertCell(4);
+
+    cell1.textContent = frameNumber;
+
+    // 格式化时间戳
+    let formattedTime = timestamp;
+    try {
+      const date = new Date(timestamp);
+      formattedTime = date.toLocaleTimeString() + '.' + date.getMilliseconds();
+    } catch (e) {
+      console.error('时间戳格式错误:', e);
+    }
+
+    cell2.textContent = formattedTime;
+    cell3.textContent = type;
+    cell4.textContent = status;
+    cell5.textContent = JSON.stringify(details).substring(0, 30) + '...';
+  }
+
+  // 连接WebSocket
+  function connectWebSocket() {
+    if (ws) {
+      ws.close();
+    }
+
+    try {
+      // TODO: 获取当前页面URL中的主机名和端口
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.hostname || 'localhost';
+      const port = 9001; // WebSocket服务器端口
+
+      const wsUrl = `${protocol}//${host}:${port}/websocket`;
+      showStatus(`正在连接到: ${wsUrl}`);
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = function () {
+        isConnected = true;
+        showStatus('WebSocket连接已建立');
+        connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
+        startVideoBtn.disabled = false;
+        testDataBtn.disabled = false;
+        loadingIndicator.textContent = '连接成功，等待视频数据...';
+      };
+
+      ws.onclose = function () {
+        isConnected = false;
+        showStatus('WebSocket连接已关闭');
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        startVideoBtn.disabled = true;
+        testDataBtn.disabled = true;
+        loadingIndicator.style.display = 'flex';
+        loadingIndicator.textContent = '连接已断开';
+
+        // 重置视频状态
+        isPlaying = false;
+        isPaused = false;
+        updateVideoControls();
+      };
+
+      ws.onerror = function (error) {
+        isConnected = false;
+        showStatus(`WebSocket错误: ${error.message || '未知错误'}`, true);
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        startVideoBtn.disabled = true;
+        testDataBtn.disabled = true;
+      };
+
+      ws.onmessage = handleWebSocketMessage;
+    } catch (e) {
+      showStatus(`连接错误: ${e.message}`, true);
+    }
+  }
+
+  // 处理WebSocket消息
+  function handleWebSocketMessage(event) {
+    try {
+      const data = JSON.parse(event.data);
+
+      switch (data.type) {
+        case 'video_info':
+          handleVideoInfo(data);
+          break;
+
+        case 'video_frame':
+          handleVideoFrame(data);
+          break;
+
+        case 'frame':
+          handleDataFrame(data);
+          break;
+
+        case 'second':
+          handleDataSecond(data);
+          break;
+
+        case 'status_change':
+          handleStatusChange(data);
+          break;
+
+        case 'complete':
+          showStatus(`完成: ${data.message}`);
+          isPlaying = false;
+          isPaused = false;
+          updateVideoControls();
+          break;
+
+        case 'error':
+          showStatus(`错误: ${data.message}`, true);
+          break;
+
+        default:
+          // 其他消息类型
+          console.log('收到其他类型消息:', data);
+          addTableRow('N/A', new Date().toISOString(), '其他', 'info', data);
+      }
+    } catch (e) {
+      console.error('处理消息时出错:', e);
+      showStatus(`处理消息时出错: ${e.message}`, true);
+    }
+  }
+
+  // 处理视频信息
+  function handleVideoInfo(data) {
+    totalFrames = data.frame_count;
+    frameCount = 0;
+
+    // 更新视频播放状态
+    isPlaying = true;
+    isPaused = false;
+    updateVideoControls();
+
+    videoInfo.innerHTML = `
+        <strong>视频信息</strong><br>
+        文件名: ${data.file_name || '未知'}<br>
+        分辨率: ${data.width || 0} x ${data.height || 0}<br>
+        总帧数: ${data.frame_count || 0}<br>
+        原始帧率: ${data.original_fps || 0} fps<br>
+        发送帧率: ${data.send_fps || 0} fps<br>
+        帧间延迟: ${data.frame_delay || 0} 秒
+      `;
+
+    showStatus('收到视频信息，准备接收帧数据');
+    progressBar.style.width = '0%';
+    loadingIndicator.textContent = '加载视频中...';
+  }
+
+  // 处理视频帧
+  function handleVideoFrame(data) {
+    // 确保状态正确
+    if (!isPlaying) {
+      isPlaying = true;
+      updateVideoControls();
+    }
+
+    // 更新视频帧
+    videoFrame.src = 'data:image/jpeg;base64,' + data.image_data;
+
+    // 更新进度条
+    frameCount = data.frame_number;
+    if (totalFrames > 0) {
+      const progress = Math.min(100, Math.round(frameCount / totalFrames * 100));
+      progressBar.style.width = progress + '%';
+    }
+
+    // 隐藏加载指示器
+    loadingIndicator.style.display = 'none';
+
+    // 每5帧更新一次表格，避免过于频繁的DOM更新
+    if (frameCount % 5 === 0 || frameCount === 1 || frameCount === totalFrames) {
+      addTableRow(
+        data.frame_number,
+        data.timestamp,
+        '视频帧',
+        `${frameCount}/${totalFrames}`,
+        {width: data.width, height: data.height}
+      );
+    }
+  }
+
+  // 处理帧数据
+  function handleDataFrame(data) {
+    videoFrame.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+    loadingIndicator.style.display = 'none';
+
+    addTableRow(
+      data.frame_number,
+      data.timestamp || new Date().toISOString(),
+      '帧数据',
+      `${data.frame_number}/${data.total_frames}`,
+      data.data
+    );
+
+    // 更新进度条
+    if (data.total_frames > 0) {
+      const progress = Math.min(100, Math.round(data.frame_number / data.total_frames * 100));
+      progressBar.style.width = progress + '%';
+    }
+  }
+
+  // 处理时间序列数据
+  function handleDataSecond(data) {
+    videoFrame.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+    loadingIndicator.style.display = 'none';
+
+    addTableRow(
+      data.second_number,
+      data.timestamp || new Date().toISOString(),
+      '时间序列',
+      `${data.second_number}/${data.total_seconds}`,
+      data.data
+    );
+
+    // 更新进度条
+    if (data.total_seconds > 0) {
+      const progress = Math.min(100, Math.round(data.second_number / data.total_seconds * 100));
+      progressBar.style.width = progress + '%';
+    }
+  }
+
+  // 处理状态变化消息
+  function handleStatusChange(data) {
+    if (data.status === 'paused') {
+      isPaused = true;
+      showStatus(`视频已暂停，当前帧: ${data.current_frame}`);
+      addTableRow(
+        data.current_frame,
+        data.timestamp,
+        '状态变化',
+        '已暂停',
+        {action: 'paused', frame: data.current_frame}
+      );
+    } else if (data.status === 'resumed') {
+      isPaused = false;
+      showStatus(`视频已恢复播放，当前帧: ${data.current_frame}`);
+      addTableRow(
+        data.current_frame,
+        data.timestamp,
+        '状态变化',
+        '已恢复',
+        {action: 'resumed', frame: data.current_frame}
+      );
+    }
+    updateVideoControls();
+  }
+
+  // 发送HTTP请求获取视频流
+  function startVideoStream() {
+    if (!isConnected) {
+      showStatus('请先连接WebSocket', true);
+      return;
+    }
+
+    const videoPath = prompt('请输入视频文件的路径:', 'example.mp4');
+    if (!videoPath) return;
+
+    const fps = prompt('请输入帧率 (默认: 20):', '20');
+
+    // 重置视频状态
+    isPlaying = false;
+    isPaused = false;
+    updateVideoControls();
+
+    fetch('/?mode=video&video_path=' + encodeURIComponent(videoPath) + '&fps=' + (fps || '20'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          showStatus(`视频流请求成功: ${data.message}`);
+          loadingIndicator.style.display = 'flex';
+          loadingIndicator.textContent = '准备接收视频...';
+          clearTable();
+        } else {
+          showStatus(`视频流请求失败: ${data.message}`, true);
+        }
+      })
+      .catch(error => {
+        showStatus(`请求错误: ${error.message}`, true);
+      });
+  }
+
+  // 接收测试数据
+  function startTestData() {
+    if (!isConnected) {
+      showStatus('请先连接WebSocket', true);
+      return;
+    }
+
+    const mode = prompt('请选择数据模式 (frame/second):', 'frame');
+    if (!mode) return;
+
+    const paramName = mode === 'frame' ? 'fps' : 'interval';
+    const defaultValue = mode === 'frame' ? '5' : '0.2';
+    const param = prompt(`请输入${mode === 'frame' ? '帧率' : '时间间隔'} (默认: ${defaultValue}):`, defaultValue);
+
+    fetch(`/?mode=${mode}&${paramName}=${param || defaultValue}&test=true`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          showStatus(`测试数据请求成功: ${data.message}`);
+          loadingIndicator.style.display = 'flex';
+          loadingIndicator.textContent = '准备接收数据...';
+          clearTable();
+        } else {
+          showStatus(`测试数据请求失败: ${data.message}`, true);
+        }
+      })
+      .catch(error => {
+        showStatus(`请求错误: ${error.message}`, true);
+      });
+  }
+
+  // 断开WebSocket连接
+  function disconnectWebSocket() {
+    if (ws) {
+      ws.close();
+      ws = null;
+    }
+  }
+
+  // 暂停视频
+  function pauseVideo() {
+    if (!isConnected || !isPlaying || isPaused) {
+      return;
+    }
+
+    // 通过WebSocket发送命令
+    if (ws) {
+      ws.send(JSON.stringify({action: 'pause_video'}));
+      showStatus('发送暂停命令');
+    }
+
+    // 同时通过HTTP API发送请求
+    fetch('/control?action=pause', {
+      method: 'GET'
+    })
+      .then(response => response.json())
+      .catch(error => {
+        console.error('暂停请求错误:', error);
+      });
+  }
+
+  // 恢复播放视频
+  function resumeVideo() {
+    if (!isConnected || !isPlaying || !isPaused) {
+      return;
+    }
+
+    // 通过WebSocket发送命令
+    if (ws) {
+      ws.send(JSON.stringify({action: 'resume_video'}));
+      showStatus('发送恢复播放命令');
+    }
+
+    // 同时通过HTTP API发送请求
+    fetch('/control?action=resume', {
+      method: 'GET'
+    })
+      .then(response => response.json())
+      .catch(error => {
+        console.error('恢复播放请求错误:', error);
+      });
+  }
+
+  // 停止视频
+  function stopVideo() {
+    if (!isConnected || !isPlaying) {
+      return;
+    }
+
+    // 通过WebSocket发送命令
+    if (ws) {
+      ws.send(JSON.stringify({action: 'stop_video'}));
+      showStatus('发送停止视频命令');
+    }
+
+    // 同时通过HTTP API发送请求
+    fetch('/control?action=stop', {
+      method: 'GET'
+    })
+      .then(response => response.json())
+      .catch(error => {
+        console.error('停止请求错误:', error);
+      });
+
+    // 重置状态
+    isPlaying = false;
+    isPaused = false;
+    updateVideoControls();
+  }
+
+  // 更新视频控制按钮状态
+  function updateVideoControls() {
+    if (!isConnected) {
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = true;
+      stopBtn.disabled = true;
+      return;
+    }
+
+    pauseBtn.disabled = !isPlaying || isPaused;
+    resumeBtn.disabled = !isPlaying || !isPaused;
+    stopBtn.disabled = !isPlaying;
+  }
+
+  // 注册事件监听器
+  connectBtn.addEventListener('click', connectWebSocket);
+  disconnectBtn.addEventListener('click', disconnectWebSocket);
+  startVideoBtn.addEventListener('click', startVideoStream);
+  testDataBtn.addEventListener('click', startTestData);
+  pauseBtn.addEventListener('click', pauseVideo);
+  resumeBtn.addEventListener('click', resumeVideo);
+  stopBtn.addEventListener('click', stopVideo);
+
+  // 上传视频文件相关事件
+  uploadBtn.addEventListener('click', function () {
+    uploadForm.style.display = uploadForm.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // 取消上传
+  cancelUploadBtn.addEventListener('click', function () {
+    uploadForm.style.display = 'none';
+    videoFile.value = '';
+    uploadProgress.style.display = 'none';
+    uploadProgressBar.style.width = '0%';
+    uploadProgressText.textContent = '0%';
+  });
+
+  // 提交上传
+  submitUploadBtn.addEventListener('click', function () {
+    if (!videoFile.files || videoFile.files.length === 0) {
+      showStatus('请先选择要上传的视频文件', true);
+      return;
+    }
+
+    const file = videoFile.files[0];
+    const formData = new FormData();
+    formData.append('video', file);
+
+    // 显示上传进度
+    uploadProgress.style.display = 'block';
+
+    // 创建XMLHttpRequest对象来监控上传进度
+    const xhr = new XMLHttpRequest();
+
+    // 监听上传进度
+    xhr.upload.addEventListener('progress', function (e) {
+      if (e.lengthComputable) {
+        const percentComplete = Math.round((e.loaded / e.total) * 100);
+        uploadProgressBar.style.width = percentComplete + '%';
+        uploadProgressText.textContent = percentComplete + '%';
+      }
+    });
+
+    // 监听请求完成
+    xhr.addEventListener('load', function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        showStatus('视频文件上传成功!');
+        try {
+          const response = JSON.parse(xhr.responseText);
+          console.log('上传响应:', response);
+          // 将上传结果添加到表格
+          addTableRow('上传', new Date().toISOString(), '文件上传', '成功', {
+            filename: file.name,
+            size: formatFileSize(file.size),
+            type: file.type,
+            response: response
+          });
+        } catch (e) {
+          console.error('解析上传响应时出错:', e);
+        }
+      } else {
+        showStatus(`上传失败: ${xhr.statusText}`, true);
+      }
+      // 完成后重置表单
+      uploadForm.style.display = 'none';
+      videoFile.value = '';
+      uploadProgress.style.display = 'none';
+    });
+
+    // 监听错误
+    xhr.addEventListener('error', function () {
+      showStatus('上传过程中发生网络错误', true);
+      uploadProgress.style.display = 'none';
+    });
+
+    // 监听取消
+    xhr.addEventListener('abort', function () {
+      showStatus('上传已取消', true);
+      uploadProgress.style.display = 'none';
+    });
+
+    // 开始上传
+    xhr.open('PUT', 'http://192.168.2.102:9000/upload');
+    // 设置跨域请求允许发送凭证
+    xhr.withCredentials = true;
+    // 不设置Content-Type，让浏览器自动设置带boundary信息的multipart/form-data
+    xhr.send(formData);
+
+    showStatus('开始上传文件: ' + file.name);
+  });
+
+  // 格式化文件大小
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // 页面加载时自动连接
+  window.addEventListener('load', function () {
+    // 检查URL参数是否有autoconnect=true
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('autoconnect') === 'true') {
+      setTimeout(connectWebSocket, 500);
+    }
+  });
+</script>
+</body>
+</html>

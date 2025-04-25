@@ -66,6 +66,49 @@ def log_function_call(func: Callable) -> Callable:
     return wrapper
 
 
+# 日志输出
+def log_results(func):
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        with open("results.log", "a") as log_file:
+            log_file.write(f"{func.__name__} - Result: {result}\n")
+        return result
+
+    return wrapper
+
+
+# 优雅的错误处理
+def suppress_errors(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print(f"Error in {func.__name__}: {e}")
+            return None
+
+    return wrapper
+
+
+# 调试变得更容易
+def debug(func):
+    def wrapper(*args, **kwargs):
+        print(f"Debugging {func.__name__} - args: {args}, kwargs: {kwargs}")
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def log_decorator(func):
+    def wrapper(*args, **kwargs):
+        logging.basicConfig(level=logging.INFO)
+        logging.info(f"开始执行 {func.__name__} 函数")
+        result = func(*args, **kwargs)
+        logging.info(f"{func.__name__} 函数执行完毕")
+        return result
+
+    return wrapper
+
+
 # 使用示例:
 # @log_exception
 # @log_execution_time
@@ -73,3 +116,8 @@ def log_function_call(func: Callable) -> Callable:
 # def some_function(param1, param2):
 #     # 函数实现
 #     return result
+#
+# @debug
+# def complex_data_processing(data, threshold=0.5):
+#     # Your complex data processing code here
+#     pass
