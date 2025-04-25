@@ -16,6 +16,43 @@ from typing import Any, Callable
 # redis_client = Redis(host='localhost', port=6379, db=0)
 
 
+# 缓存结果
+def memoize(func):
+    cache = {}
+
+    def wrapper(*args):
+        if args in cache:
+            return cache[args]
+        result = func(*args)
+        cache[args] = result
+        return result
+
+    return wrapper
+
+
+def cache_decorator(func):
+    cache = dict()
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        key = (args, tuple(kwargs.items()))
+        if key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+
+    return wrapper
+
+
+####### 也可以使用functools.lru_cache来实现缓存装饰器的效果
+import functools
+
+
+@functools.lru_cache(maxsize=None)
+def example_function(x, y):
+    return x + y
+
+
+# 内存缓存装饰器
 def memory_cache(expire_time: int = 60):
     """
     内存缓存装饰器
@@ -42,6 +79,7 @@ def memory_cache(expire_time: int = 60):
     return decorator
 
 
+# Redis缓存装饰器
 def redis_cache(expire_time: int = 60):
     """
     Redis缓存装饰器

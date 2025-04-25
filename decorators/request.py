@@ -6,9 +6,9 @@
 @Desc    ：请求重试装饰器
 """
 
-import functools
 import json
 import time
+from functools import wraps
 from typing import Any, Callable
 
 import requests
@@ -29,7 +29,7 @@ def send_to_url(url: str, max_retries: int = 3, retry_interval: int = 2, timeout
     """
 
     def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             # 执行原始函数获取结果
             result = func(*args, **kwargs)
@@ -115,3 +115,48 @@ def _send_result(result: Any, url: str, max_retries: int = 3, retry_interval: in
 
     # 如果所有尝试都失败
     return False
+
+
+# 重试执行
+def retry(max_attempts, delay):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    print(f"Attempt {attempts + 1} failed. Retrying in {delay} seconds.")
+                    attempts += 1
+                    time.sleep(delay)
+            raise Exception("Max retry attempts exceeded.")
+
+        return wrapper
+
+    return decorator
+
+
+# 重试装饰器
+def retry_(retries=3, delay=1):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for i in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if i == retries - 1:
+                        raise e
+                    time.sleep(delay)
+                    return None
+            return None
+
+        return wrapper
+
+    return decorator
+
+
+@retry_(retries=5, delay=2)
+def my_function():
+    #  这里是你的函数实现
+    pass

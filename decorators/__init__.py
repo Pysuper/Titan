@@ -11,6 +11,11 @@ from .logs import log_exception, log_execution_time, log_function_call
 from .request import send_to_url
 from .save import save_result_to_file, save_output_to_file
 
+# 保留被装饰函数的元数据
+# 类装饰器
+# 使用类作为装饰器
+# 使用装饰器实现 权限校验
+
 __all__ = [
     "memory_cache",
     "redis_cache",
