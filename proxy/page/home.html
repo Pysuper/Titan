@@ -4,233 +4,309 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>视频流与数据实时监控</title>
-  <style>
-    body {
-      font-family: 'Microsoft YaHei', Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
+<style>
+  /* 美化按钮样式 */
+  .btn {
+    padding: 10px 16px;
+    background: linear-gradient(to bottom, #4CAF50, #45a049);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background-color: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      padding: 20px;
-    }
+  .btn:hover {
+    background: linear-gradient(to bottom, #45a049, #3d8b3d);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+  }
 
-    h1 {
-      text-align: center;
-      color: #333;
-      margin-bottom: 20px;
-    }
+  .btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
 
-    .panel {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
+  .btn:disabled {
+    background: linear-gradient(to bottom, #cccccc, #bbbbbb);
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.7;
+  }
 
-    .video-container {
-      flex: 1;
-      min-width: 320px;
-      background-color: #000;
-      border-radius: 5px;
-      overflow: hidden;
-      position: relative;
-    }
+  /* 上传按钮特殊样式 */
+  #uploadBtn {
+    background: linear-gradient(to bottom, #2196F3, #1976D2);
+  }
 
-    .video-frame {
-      width: 100%;
-      display: block;
-    }
+  #uploadBtn:hover {
+    background: linear-gradient(to bottom, #1976D2, #1565C0);
+  }
 
-    .data-container {
-      flex: 1;
-      min-width: 320px;
-    }
+  /* 上传表单样式 */
+  .upload-form {
+    margin: 15px 0;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
+  .upload-form h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+    font-size: 18px;
+  }
 
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px 12px;
-      text-align: left;
-    }
+  .upload-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
 
-    th {
-      background-color: #f2f2f2;
-      font-weight: bold;
-    }
+  #submitUploadBtn {
+    background: linear-gradient(to bottom, #4CAF50, #45a049);
+  }
 
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
+  #cancelUploadBtn {
+    background: linear-gradient(to bottom, #f44336, #e53935);
+  }
 
-    .controls {
-      margin: 20px 0;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+  .progress-bar {
+    height: 10px;
+    background-color: #e0e0e0;
+    border-radius: 5px;
+    margin-top: 5px;
+    overflow: hidden;
+  }
 
-    .btn {
-      padding: 8px 15px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
+  .progress {
+    height: 100%;
+    background-color: #4CAF50;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+</style>
 
-    .btn:hover {
-      background-color: #45a049;
-    }
+<script>
+  // 等待DOM加载完成
+  document.addEventListener('DOMContentLoaded', function() {
+    // 获取上传按钮和表单元素
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadForm = document.getElementById('uploadForm');
+    const videoFileInput = document.getElementById('videoFile');
+    const submitUploadBtn = document.getElementById('submitUploadBtn');
+    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+    const uploadProgressBar = document.getElementById('uploadProgressBar');
+    const uploadProgressText = document.getElementById('uploadProgressText');
+    const uploadProgress = document.querySelector('.upload-progress');
 
-    .status {
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 4px;
-      background-color: #e8f5e9;
-      display: none;
-    }
+    // 上传按钮点击事件
+    uploadBtn.addEventListener('click', function() {
+      // 显示上传表单
+      uploadForm.style.display = 'block';
+      // 模拟点击文件输入框，打开文件选择对话框
+      setTimeout(() => {
+        videoFileInput.click();
+      }, 100);
+    });
 
-    .video-info {
-      margin-top: 10px;
-      padding: 10px;
-      background-color: #f0f8ff;
-      border-radius: 4px;
-      font-size: 14px;
-    }
+    // 文件选择变化事件
+    videoFileInput.addEventListener('change', function() {
+      if (this.files.length > 0) {
+        // 显示所选文件名
+        const fileName = this.files[0].name;
+        const fileSize = (this.files[0].size / (1024 * 1024)).toFixed(2); // 转换为MB
 
-    .progress-bar {
-      height: 20px;
-      background-color: #e0e0e0;
-      border-radius: 10px;
-      margin-top: 10px;
-      overflow: hidden;
-    }
+        // 更新上传表单标题显示文件信息
+        const uploadFormTitle = uploadForm.querySelector('h3');
+        uploadFormTitle.textContent = `上传文件: ${fileName} (${fileSize} MB)`;
+      }
+    });
 
-    .progress {
-      height: 100%;
-      background-color: #4CAF50;
-      width: 0%;
-      transition: width 0.3s;
-    }
+    // 取消上传按钮点击事件
+    cancelUploadBtn.addEventListener('click', function() {
+      // 重置文件输入框
+      videoFileInput.value = '';
+      // 隐藏上传表单
+      uploadForm.style.display = 'none';
+      // 重置进度条
+      uploadProgressBar.style.width = '0%';
+      uploadProgressText.textContent = '0%';
+      uploadProgress.style.display = 'none';
+    });
 
-    .loading {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    }
+    // 提交上传按钮点击事件
+    submitUploadBtn.addEventListener('click', function() {
+      if (!videoFileInput.files.length) {
+        alert('请先选择要上传的视频文件');
+        return;
+      }
 
-    .video-controls {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 10px;
-    }
+      // 显示进度条
+      uploadProgress.style.display = 'block';
 
-    .video-btn {
-      padding: 6px 12px;
-      background-color: #2196F3;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
+      // 创建FormData对象
+      const formData = new FormData();
+      formData.append('video', videoFileInput.files[0]);
 
-    .video-btn:hover {
-      background-color: #0b7dda;
-    }
+      // 创建XMLHttpRequest对象
+      const xhr = new XMLHttpRequest();
 
-    .video-btn:disabled {
-      background-color: #cccccc;
-      cursor: not-allowed;
+      // 监听上传进度
+      xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          uploadProgressBar.style.width = percentComplete + '%';
+          uploadProgressText.textContent = percentComplete + '%';
+        }
+      });
+
+      // 上传完成事件
+      xhr.addEventListener('load', function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // 上传成功
+          alert('视频上传成功!');
+          // 隐藏上传表单
+          uploadForm.style.display = 'none';
+          // 重置文件输入框
+          videoFileInput.value = '';
+          // 重置进度条
+          uploadProgressBar.style.width = '0%';
+          uploadProgressText.textContent = '0%';
+          uploadProgress.style.display = 'none';
+        } else {
+          // 上传失败
+          alert('上传失败: ' + xhr.statusText);
+        }
+      });
+
+      // 上传错误事件
+      xhr.addEventListener('error', function() {
+        alert('上传过程中发生错误');
+      });
+
+      // 配置请求
+      xhr.open('PUT', '/face/proxy');
+
+      // 发送请求
+      xhr.send(formData);
+    });
+  });
+</script>
     }
+  </style>
   </style>
 </head>
 <body>
 <div class="container">
   <h1>视频流与数据实时监控</h1>
 
-  <div class="controls">
-    <button id="connectBtn" class="btn">连接 WebSocket</button>
-    <button id="disconnectBtn" class="btn" disabled>断开连接</button>
-    <button id="startVideoBtn" class="btn" disabled>开始视频流</button>
-    <button id="testDataBtn" class="btn" disabled>接收测试数据</button>
-    <button id="uploadBtn" class="btn">上传视频</button>
+<div class="controls">
+  <button id="connectBtn" class="btn btn-connect">连接 WebSocket</button>
+  <button id="disconnectBtn" class="btn btn-disconnect" disabled>断开连接</button>
+  <button id="startVideoBtn" class="btn btn-play" disabled>开始视频流</button>
+  <button id="testDataBtn" class="btn btn-test" disabled>接收测试数据</button>
+  <button id="uploadBtn" class="btn btn-upload">上传视频</button>
+</div>
+
+<div class="status" id="statusBar"></div>
+
+<!-- 添加文件上传表单，默认隐藏 -->
+<div class="upload-form" id="uploadForm" style="display: none;">
+  <h3>上传视频文件</h3>
+  <input type="file" id="videoFile" accept="video/*" style="margin-bottom: 10px; display: block;">
+  <div class="upload-controls">
+    <button id="submitUploadBtn" class="btn">确认上传</button>
+    <button id="cancelUploadBtn" class="btn">取消</button>
   </div>
-
-  <div class="status" id="statusBar"></div>
-
-  <!-- 添加文件上传表单，默认隐藏 -->
-  <div class="upload-form" id="uploadForm" style="display: none; margin: 15px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #e0e0e0;">
-    <h3 style="margin-top: 0;">上传视频文件</h3>
-    <input type="file" id="videoFile" accept="video/*" style="margin-bottom: 10px; display: block;">
-    <div class="upload-controls" style="display: flex; gap: 10px;">
-      <button id="submitUploadBtn" class="btn">确认上传</button>
-      <button id="cancelUploadBtn" class="btn" style="background-color: #f44336;">取消</button>
-    </div>
-    <div class="upload-progress" style="margin-top: 10px; display: none;">
-      <div style="margin-bottom: 5px;">上传进度: <span id="uploadProgressText">0%</span></div>
-      <div class="progress-bar">
-        <div class="progress" id="uploadProgressBar" style="width: 0%;"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="video-container">
-      <img id="videoFrame" class="video-frame" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="视频帧">
-      <div class="loading" id="loadingIndicator">等待连接...</div>
-      <div class="progress-bar">
-        <div class="progress" id="progressBar"></div>
-      </div>
-      <div class="video-controls">
-        <button id="pauseBtn" class="video-btn" disabled>暂停</button>
-        <button id="resumeBtn" class="video-btn" disabled>播放</button>
-        <button id="stopBtn" class="video-btn" disabled>停止</button>
-      </div>
-    </div>
-
-    <div class="data-container">
-      <div class="video-info" id="videoInfo">还未收到视频信息</div>
-      <h3>实时数据</h3>
-      <table>
-        <thead>
-        <tr>
-          <th>帧号</th>
-          <th>时间戳</th>
-          <th>类型</th>
-          <th>状态</th>
-          <th>详情</th>
-        </tr>
-        </thead>
-        <tbody id="dataTable">
-        <tr>
-          <td colspan="5" style="text-align: center;">等待数据...</td>
-        </tr>
-        </tbody>
-      </table>
+  <div class="upload-progress" style="display: none; margin-top: 10px;">
+    <div style="margin-bottom: 5px;">上传进度: <span id="uploadProgressText">0%</span></div>
+    <div class="progress-bar">
+      <div class="progress" id="uploadProgressBar"></div>
     </div>
   </div>
+</div>
+</div>
+</div>
+
+<div class="panel">
+  <div class="video-container">
+    <img id="videoFrame" class="video-frame" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="视频帧">
+    <div class="loading" id="loadingIndicator">等待连接...</div>
+    <div class="progress-bar">
+      <div class="progress" id="progressBar"></div>
+    </div>
+<div class="video-controls">
+  <button id="pauseBtn" class="video-btn btn-pause" disabled>暂停</button>
+  <button id="resumeBtn" class="video-btn btn-resume" disabled>播放</button>
+  <button id="stopBtn" class="video-btn btn-stop" disabled>停止</button>
+</div>
+    </div>
+  </div>
+</div>
+
+<div class="data-container">
+  <div class="video-info" id="videoInfo">还未收到视频信息</div>
+
+  <!-- 添加数据统计面板 -->
+  <div class="data-stats">
+    <div class="stat-card">
+      <h4>总帧数</h4>
+      <div class="stat-value" id="totalFramesStat">0</div>
+    </div>
+    <div class="stat-card">
+      <h4>当前帧</h4>
+      <div class="stat-value" id="currentFrameStat">0</div>
+    </div>
+    <div class="stat-card">
+      <h4>帧率</h4>
+      <div class="stat-value" id="fpsStat">0</div>
+    </div>
+    <div class="stat-card">
+      <h4>数据条数</h4>
+      <div class="stat-value" id="dataCountStat">0</div>
+    </div>
+  </div>
+
+  <h3>实时数据</h3>
+  <table>
+    <thead>
+    <tr>
+      <th>帧号</th>
+      <th>时间戳</th>
+      <th>类型</th>
+      <th>状态</th>
+      <th>详情</th>
+    </tr>
+    </thead>
+    <tbody id="dataTable">
+    <tr>
+      <td colspan="5" class="empty-state">等待数据...</td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 添加详情弹窗 -->
+<div class="details-modal" id="detailsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitle">数据详情</h3>
+      <button class="close-modal" id="closeModal">&times;</button>
+    </div>
+    <div class="json-viewer" id="jsonViewer"></div>
+  </div>
+</div>
+</div>
 </div>
 
 <script>
@@ -278,7 +354,21 @@
     dataTable.innerHTML = '<tr><td colspan="5" style="text-align: center;">等待数据...</td></tr>';
   }
 
-  // 添加行到表格
+  // 在现有的全局变量下添加
+  let dataCount = 0;
+  let detailsModal = document.getElementById('detailsModal');
+  let closeModal = document.getElementById('closeModal');
+  let jsonViewer = document.getElementById('jsonViewer');
+  let modalTitle = document.getElementById('modalTitle');
+
+  // 更新统计数据
+  function updateStats() {
+    document.getElementById('totalFramesStat').textContent = totalFrames || 0;
+    document.getElementById('currentFrameStat').textContent = frameCount || 0;
+    document.getElementById('dataCountStat').textContent = dataCount || 0;
+  }
+
+  // 修改添加行到表格的函数
   function addTableRow(frameNumber, timestamp, type, status, details) {
     // 如果表格只有一行且包含"等待数据"，则清空表格
     if (dataTable.rows.length === 1 && dataTable.rows[0].cells[0].colSpan === 5) {
@@ -291,6 +381,7 @@
     }
 
     const row = dataTable.insertRow();
+    dataCount++;
 
     const cell1 = row.insertCell(0);
     const cell2 = row.insertCell(1);
@@ -310,9 +401,98 @@
     }
 
     cell2.textContent = formattedTime;
-    cell3.textContent = type;
+
+    // 为不同类型添加样式
+    let badgeClass = 'badge-frame';
+    if (type.includes('视频')) badgeClass = 'badge-video';
+    else if (type.includes('时间')) badgeClass = 'badge-second';
+    else if (type.includes('状态')) badgeClass = 'badge-status';
+    else if (type.includes('上传')) badgeClass = 'badge-upload';
+
+    cell3.innerHTML = `<span class="data-badge ${badgeClass}">${type}</span>`;
     cell4.textContent = status;
-    cell5.textContent = JSON.stringify(details).substring(0, 30) + '...';
+
+    // 创建可点击的详情
+    const detailsSpan = document.createElement('span');
+    detailsSpan.className = 'data-details';
+    detailsSpan.textContent = typeof details === 'object' ?
+      JSON.stringify(details).substring(0, 30) + '...' :
+      String(details).substring(0, 30) + '...';
+
+    // 添加点击事件显示详情
+    detailsSpan.addEventListener('click', function () {
+      showDetailsModal(type, frameNumber, details);
+    });
+
+    cell5.appendChild(detailsSpan);
+
+    // 更新统计数据
+    updateStats();
+  }
+
+  // 显示详情弹窗
+  function showDetailsModal(type, frameNumber, details) {
+    modalTitle.textContent = `${type} 详情 (帧 ${frameNumber})`;
+
+    // 格式化JSON显示
+    if (typeof details === 'object') {
+      jsonViewer.textContent = JSON.stringify(details, null, 2);
+    } else {
+      jsonViewer.textContent = details;
+    }
+
+    detailsModal.style.display = 'flex';
+  }
+
+  // 关闭详情弹窗
+  closeModal.addEventListener('click', function () {
+    detailsModal.style.display = 'none';
+  });
+
+  // 点击弹窗外部关闭
+  detailsModal.addEventListener('click', function (event) {
+    if (event.target === detailsModal) {
+      detailsModal.style.display = 'none';
+    }
+  });
+
+  // 修改处理视频信息函数
+  function handleVideoInfo(data) {
+    totalFrames = data.frame_count;
+    frameCount = 0;
+
+    // 更新视频播放状态
+    isPlaying = true;
+    isPaused = false;
+    updateVideoControls();
+
+    // 更新FPS统计
+    document.getElementById('fpsStat').textContent = data.send_fps || data.original_fps || 0;
+
+    videoInfo.innerHTML = `
+      <strong>视频信息</strong><br>
+      文件名: ${data.file_name || '未知'}<br>
+      分辨率: ${data.width || 0} x ${data.height || 0}<br>
+      总帧数: ${data.frame_count || 0}<br>
+      原始帧率: ${data.original_fps || 0} fps<br>
+      发送帧率: ${data.send_fps || 0} fps<br>
+      帧间延迟: ${data.frame_delay || 0} 秒
+    `;
+
+    showStatus('收到视频信息，准备接收帧数据');
+    progressBar.style.width = '0%';
+    loadingIndicator.textContent = '加载视频中...';
+
+    // 更新统计数据
+    updateStats();
+  }
+
+  // 修改清空表格函数
+  function clearTable() {
+    dataTable.innerHTML = '<tr><td colspan="5" class="empty-state">等待数据...</td></tr>';
+    dataCount = 0;
+    updateStats();
+  }
   }
 
   // 连接WebSocket
@@ -810,6 +990,16 @@
     xhr.send(formData);
 
     showStatus('开始上传文件: ' + file.name);
+  });
+
+  // 文件选择事件处理
+  videoFile.addEventListener('change', function () {
+    const fileName = document.getElementById('fileName');
+    if (this.files && this.files.length > 0) {
+      fileName.textContent = this.files[0].name;
+    } else {
+      fileName.textContent = '未选择文件';
+    }
   });
 
   // 格式化文件大小
