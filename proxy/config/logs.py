@@ -14,6 +14,7 @@ import sys
 
 # TODO: 期望统一管理日志，怎么实现？
 # ------------------------------------------------------------
+LOG_LEVEL = "debug"
 PROXY_ROOT = Path(__file__).resolve(strict=True).parent.parent / "logs"
 if not os.path.exists(PROXY_ROOT):
     os.makedirs(PROXY_ROOT)

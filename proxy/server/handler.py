@@ -84,7 +84,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         """
         清理已存在的WebSocket连接
 
-        :param ws_handler_map: WebSocket处理器映射
+        @param ws_handler_map: WebSocket处理器映射
         """
         old_handler = ws_handler_map.get("websocket_id")
         if old_handler:
@@ -136,7 +136,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         - replay_video: 重新播放
         - set_video_path: 设置视频路径
 
-        :param message: 客户端发送的消息
+        @param message: 客户端发送的消息
         """
         try:
             # 解析消息
@@ -175,9 +175,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         """
         发送统一格式的响应
 
-        :param status: 状态 (success/error/warning/received)
-        :param message: 消息内容
-        :param kwargs: 其他要包含在响应中的字段
+        @param status: 状态 (success/error/warning/received)
+        @param message: 消息内容
+        @param kwargs: 其他要包含在响应中的字段
         :return: 是否发送成功
         """
         response = {"status": status, "message": message}
@@ -420,7 +420,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         """
         播放结果数据
 
-        :param fps: 每秒帧数，默认5fps
+        @param fps: 每秒帧数，默认5fps
         """
         try:
             if not hasattr(self, "result_data") or not self.result_data:
@@ -526,7 +526,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         """
         安全地发送WebSocket消息
 
-        :param message: 要发送的消息
+        @param message: 要发送的消息
         :return: 是否发送成功
         """
         try:
@@ -568,7 +568,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         """
         控制数据播放的暂停和恢复
 
-        :param action: 控制动作，可选值："pause"暂停播放，"resume"恢复播放
+        @param action: 控制动作，可选值："pause"暂停播放，"resume"恢复播放
         :return: 处理结果
         """
         logger.info(f"收到控制命令: {action}")
@@ -635,8 +635,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         """
         启动视频流发送任务
 
-        :param video_path: 视频文件路径
-        :param fps: 指定发送帧率，如果为None则使用视频原始帧率
+        @param video_path: 视频文件路径
+        @param fps: 指定发送帧率，如果为None则使用视频原始帧率
         """
         logger.info(f"start_stream: {video_path}")
         if not self.ws_connection:
@@ -682,8 +682,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         """
         处理视频控制，只发送结果数据而不发送视频数据
 
-        :param video_path: 视频文件路径，仅用于查找对应的结果文件
-        :param fps: 指定帧率，默认使用5fps
+        @param video_path: 视频文件路径，仅用于查找对应的结果文件
+        @param fps: 指定帧率，默认使用5fps
         """
         logger.info(f"处理视频路径: {video_path}")
 
