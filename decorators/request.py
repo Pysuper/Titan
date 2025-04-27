@@ -6,10 +6,11 @@
 @Desc    ：请求重试装饰器
 """
 
+import inspect
 import json
 import time
 from functools import wraps
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 import requests
 from requests.exceptions import RequestException
@@ -21,10 +22,10 @@ def send_to_url(url: str, max_retries: int = 3, retry_interval: int = 2, timeout
     """
     装饰器：将函数返回的结果发送到指定URL
 
-    :param url: 目标服务器URL
-    :param max_retries: 最大重试次数
-    :param retry_interval: 重试间隔（秒）
-    :param timeout: 请求超时时间（秒）
+    @param url: 目标服务器URL
+    @param max_retries: 最大重试次数
+    @param retry_interval: 重试间隔（秒）
+    @param timeout: 请求超时时间（秒）
     :return: 装饰器函数
     """
 
@@ -49,11 +50,11 @@ def _send_result(result: Any, url: str, max_retries: int = 3, retry_interval: in
     """
     使用POST请求，将算法结果发送到指定服务器，自动重连
 
-    :param result: 结果
-    :param url: 目标服务器URL
-    :param max_retries: 最大重试次数
-    :param retry_interval: 重试间隔（秒）
-    :param timeout: 请求超时时间（秒）
+    @param result: 结果
+    @param url: 目标服务器URL
+    @param max_retries: 最大重试次数
+    @param retry_interval: 重试间隔（秒）
+    @param timeout: 请求超时时间（秒）
     :return: 发送状态：True/False
     """
     # 尝试将结果转换为JSON
@@ -149,6 +150,66 @@ def retry_(retries=3, delay=1):
                         raise e
                     time.sleep(delay)
                     return None
+            return None
+
+        return wrapper
+
+    return decorator
+
+
+def class_retry_decorator(max_retries: int = 3, retry_interval: int = 2, timeout: int = 10):
+    """
+    类装饰器：为类中的所有请求方法添加重试功能
+
+    @param max_retries: 最大重试次数
+    @param retry_interval: 重试间隔（秒）
+    @param timeout: 请求超时时间（秒）
+    :return: 装饰后的类
+    """
+
+    def decorator(cls):
+        # 获取原始类的所有方法
+        for name, method in inspect.getmembers(cls, inspect.isfunction):
+            # 只装饰HTTP请求方法
+            if name in ["get", "post", "put", "delete", "patch"]:
+                # 使用方法装饰器替换原始方法
+                setattr(cls, name, _method_retry_decorator(max_retries, retry_interval, timeout)(method))
+        return cls
+
+    return decorator
+
+
+def _method_retry_decorator(max_retries: int, retry_interval: int, timeout: int):
+    """
+    方法装饰器：为方法添加重试功能
+
+    @param max_retries: 最大重试次数
+    @param retry_interval: 重试间隔（秒）
+    @param timeout: 请求超时时间（秒）
+    :return: 装饰后的方法
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, url: str, params: Dict, *args, **kwargs) -> Any:
+            for attempt in range(1, max_retries + 1):
+                try:
+                    logger.info(f"发送{func.__name__.upper()}请求到 {url}，第 {attempt} 次尝试...")
+                    # 将timeout参数传递给原始函数
+                    kwargs["timeout"] = kwargs.get("timeout", timeout)
+                    result = func(self, url, params, *args, **kwargs)
+                    return result
+                except RequestException as e:
+                    logger.warning(f"请求异常: {str(e)}")
+
+                    # 如果是最后一次尝试，记录错误并返回None
+                    if attempt == max_retries:
+                        logger.error(f"已达到最大重试次数 {max_retries}，请求失败")
+                        return None
+
+                    # 否则等待后重试
+                    logger.warning(f"将在 {retry_interval} 秒后重试...")
+                    time.sleep(retry_interval)
             return None
 
         return wrapper

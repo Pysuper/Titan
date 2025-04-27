@@ -9,17 +9,14 @@
 import functools
 import logging
 import time
-from typing import Callable, Any
+from typing import Any, Callable
+from logic.config import get_logger
 
-# 配置日志
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def log_exception(func: Callable) -> Callable:
-    """
-    记录函数执行过程中的异常
-    """
+    """捕获并记录函数异常，保留原始堆栈跟踪"""
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> Any:
@@ -32,38 +29,164 @@ def log_exception(func: Callable) -> Callable:
     return wrapper
 
 
-def log_execution_time(func: Callable) -> Callable:
-    """
-    记录函数的执行时间
-    """
+def log_execution_time(threshold: float = 0.0) -> Callable:
+    """记录函数执行时间（可设置耗时阈值）"""
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            start_time = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = time.perf_counter() - start_time
+
+            if elapsed > threshold:
+                logger.warning(f"{func.__name__} took {elapsed:.4f}s (超过阈值 {threshold}s)")
+            else:
+                logger.info(f"{func.__name__} took {elapsed:.4f}s")
+
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def log_function_call(show_args: bool = True, show_return: bool = True) -> Callable:
+    """增强版函数调用日志（可选参数/返回值记录）"""
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            # 参数记录
+            if show_args:
+                args_repr = [repr(a) for a in args]
+                kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]
+                signature = ", ".join(args_repr + kwargs_repr)
+                logger.debug(f"Calling {func.__name__}({signature})")
+            else:
+                logger.debug(f"Calling {func.__name__}")
+
+            result = func(*args, **kwargs)
+
+            # 返回值记录
+            if show_return:
+                logger.debug(f"{func.__name__} returned {type(result).__name__}({result!r})")
+            else:
+                logger.debug(f"{func.__name__} completed")
+
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def async_logger(func: Callable) -> Callable:
+    """支持异步函数的日志装饰器"""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        logger.info(f"{func.__name__} took {end_time - start_time:.2f} seconds to execute")
-        return result
+    async def wrapper(*args, **kwargs) -> Any:
+        logger.info(f"Async {func.__name__} started")
+        try:
+            result = await func(*args, **kwargs)
+            logger.info(f"Async {func.__name__} completed")
+            return result
+        except Exception as e:
+            logger.exception(f"Async {func.__name__} failed: {str(e)}")
+            raise
 
     return wrapper
 
 
-def log_function_call(func: Callable) -> Callable:
-    """
-    记录函数的调用信息，包括参数和返回值
-    """
+def rate_limited(max_per_second: float):
+    """API速率限制装饰器"""
+    min_interval = 1.0 / max_per_second
 
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        args_repr = [repr(a) for a in args]
-        kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]
-        signature = ", ".join(args_repr + kwargs_repr)
-        logger.info(f"Calling {func.__name__}({signature})")
-        result = func(*args, **kwargs)
-        logger.info(f"{func.__name__} returned {result!r}")
-        return result
+    def decorator(func: Callable) -> Callable:
+        last_called = time.monotonic()
 
-    return wrapper
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            nonlocal last_called
+            elapsed = time.monotonic() - last_called
+            wait = max(min_interval - elapsed, 0)
+            if wait > 0:
+                logger.warning(f"Rate limiting: Waiting {wait:.2f}s before calling {func.__name__}")
+                time.sleep(wait)
+            last_called = time.monotonic()
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def log_context(context_key: str):
+    """在日志中添加上下文信息"""
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            context = getattr(args[0], context_key, None) if args else None
+            extra = {context_key: context} if context else {}
+            logger.info(f"Entering {func.__name__}", extra=extra)
+            try:
+                result = func(*args, **kwargs)
+                logger.info(f"Exiting {func.__name__}", extra=extra)
+                return result
+            except Exception as e:
+                logger.error(f"{func.__name__} failed with context {context}", extra=extra)
+                raise
+
+        return wrapper
+
+    return decorator
+
+
+def retry(max_attempts: int = 3, delay: float = 1.0):
+    """带指数退避的重试机制"""
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempts += 1
+                    wait = delay * (2 ** (attempts - 1))
+                    logger.warning(
+                        f"Attempt {attempts}/{max_attempts} failed. Retrying in {wait:.1f}s. Error: {str(e)}"
+                    )
+                    time.sleep(wait)
+            return func(*args, **kwargs)  # 最后一次尝试不捕获异常
+
+        return wrapper
+
+    return decorator
+
+
+# def validate_args(schema: dict):
+#     """基于JSON Schema的参数校验"""
+#
+#     def decorator(func: Callable) -> Callable:
+#         @functools.wraps(func)
+#         def wrapper(*args, **kwargs):
+#             from jsonschema import validate
+#
+#             # 构建参数字典
+#             parameters = inspect.signature(func).bind(*args, **kwargs).arguments
+#             try:
+#                 validate(instance=parameters, schema=schema)
+#             except Exception as e:
+#                 logger.error(f"参数校验失败: {str(e)}")
+#                 raise
+#             return func(*args, **kwargs)
+#
+#         return wrapper
+#
+#     return decorator
 
 
 # 日志输出
@@ -109,15 +232,45 @@ def log_decorator(func):
     return wrapper
 
 
-# 使用示例:
-# @log_exception
-# @log_execution_time
-# @log_function_call
-# def some_function(param1, param2):
-#     # 函数实现
-#     return result
-#
-# @debug
-# def complex_data_processing(data, threshold=0.5):
-#     # Your complex data processing code here
-#     pass
+'''
+
+
+# 新增使用示例
+class ExampleService:
+    def __init__(self, service_id):
+        self.service_id = service_id
+
+    @log_context("service_id")
+    @retry(max_attempts=3)
+    @validate_args(
+        schema={
+            "type": "object",
+            "properties": {
+                "data": {"type": "array"},
+                "threshold": {"type": "number", "minimum": 0},
+            },
+            "required": ["data"],
+        }
+    )
+    def process_data(self, data: list, threshold: float = 0.5):
+        """示例处理方法"""
+        if len(data) > 1000:
+            raise ValueError("Data size exceeds limit")
+        return [x for x in data if x > threshold]
+
+
+@async_logger
+async def async_data_fetch(url: str):
+    """示例异步方法"""
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            return await response.json()
+
+
+@rate_limited(max_per_second=5)
+def api_client_request(params):
+    """示例API调用"""
+    return requests.get("https://api.example.com", params=params)
+
+
+'''

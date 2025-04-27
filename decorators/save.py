@@ -16,7 +16,7 @@ def save_result_to_file(filename: str):
     """
     将函数返回结果保存到文件的装饰器
 
-    :param filename: 保存结果的文件名
+    @param filename: 保存结果的文件名
     """
 
     def decorator(func: Callable) -> Callable:
@@ -36,7 +36,7 @@ def save_output_to_file(filename: str):
     """
     将函数执行过程中的输出保存到文件的装饰器
 
-    :param filename: 保存输出的文件名
+    @param filename: 保存输出的文件名
     """
 
     def decorator(func: Callable) -> Callable:
