@@ -101,43 +101,48 @@ LOG_FORMAT = {
 MODULE_CONFIGS = {
     "default": {
         "file_name": "titan",
-        "rotation": "500 MB",  # 使用大小轮换
+        # "rotation": "500 MB",  # 使用大小轮换
+        "rotation": "00:00",  # 每天午夜轮换
         "retention": "30 days",
         "level": LOG_LEVEL.upper(),
     },
     "algorithm": {
         "file_name": "algorithm",
-        "rotation": "500 MB",  # 使用大小轮换
+        # "rotation": "500 MB",  # 使用大小轮换
+        "rotation": "00:00",  # 每天午夜轮换
         "retention": "30 days",
         "level": LOG_LEVEL.upper(),
     },
     "proxy": {
         "file_name": "proxy",
-        "rotation": "200 MB",  # 使用大小轮换
+        # "rotation": "200 MB",  # 使用大小轮换
+        "rotation": "00:00",  # 每天午夜轮换
         "retention": "15 days",
         "level": LOG_LEVEL.upper(),
     },
     "middleware": {
         "file_name": "middleware",
-        "rotation": "200 MB",  # 使用大小轮换
+        # "rotation": "200 MB",  # 使用大小轮换
+        "rotation": "00:00",  # 每天午夜轮换
         "retention": "15 days",
         "level": LOG_LEVEL.upper(),
     },
     "request": {
         "file_name": "request",
-        "rotation": "100 MB",  # 使用大小轮换
+        # "rotation": "100 MB",  # 使用大小轮换
+        "rotation": "00:00",  # 每天午夜轮换
         "retention": "7 days",
         "level": LOG_LEVEL.upper(),
     },
     "performance": {
         "file_name": "performance",
-        "rotation": "1 GB",  # 使用大小轮换
+        "rotation": "00:00",  # 每天午夜轮换
         "retention": "90 days",
         "level": "INFO",  # 性能日志通常只需要INFO级别
     },
     "error": {
         "file_name": "error",
-        "rotation": "500 MB",  # 使用大小轮换
+        "rotation": "00:00",  # 每天午夜轮换
         "retention": "90 days",
         "level": "ERROR",  # 只记录错误及以上级别
     },
@@ -198,11 +203,12 @@ class LogConfig:
             )
             cls._console_handler_added = True
 
-        # 添加文件处理器，使用日期作为文件名的一部分，但按大小轮换
+        # 添加文件处理器，使用日期作为文件名的一部分，按日期轮换
         file_handler = module_logger.add(
             # module_log_dir / f"{config['file_name']}_{module}_{{time:YYYY-MM-DD}}.log",
             module_log_dir / f"{module}_{{time:YYYY-MM-DD}}.log",
-            rotation=config["rotation"],  # 按大小轮换
+            # rotation=config["rotation"],  # 按大小轮换
+            rotation=config["rotation"],  # 每天午夜轮换
             retention=config["retention"],  # 保留天数
             format=log_format,
             level=config["level"],
@@ -216,6 +222,7 @@ class LogConfig:
             # 添加错误日志处理器（记录所有模块的错误）
             error_file_handler = module_logger.add(
                 module_log_dir / f"all_errors_{{time:YYYY-MM-DD}}.log",
+                # rotation="500 MB",  # 按大小轮换
                 rotation="500 MB",  # 按大小轮换
                 retention="90 days",  # 保留90天
                 format=log_format,
