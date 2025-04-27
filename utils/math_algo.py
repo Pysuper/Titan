@@ -7,9 +7,14 @@
 @Desc    ：Titan math_algo
 """
 
-from proxy.config.logs import logger
+from logic.config import get_logger
+
+logger = get_logger(__name__)
 
 
 def parse_ai():
+    """
+    解析ai
+    """
     logger.info("this is ai parse")
     pass
