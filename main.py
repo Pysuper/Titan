@@ -22,7 +22,7 @@ class AlgorithmFactory:
     def create_algorithm(self, name):
         """
         根据算法名称创建算法实例（单例模式）
-        :param name: 算法名称
+        @param name: 算法名称
         :return: 算法实例（单例模式）
         """
         if name not in self._instances:
@@ -46,8 +46,8 @@ class Parse:
     def execute_algorithm(self, algorithm_name, params):
         """
         执行算法
-        :param algorithm_name: 算法名称
-        :param params: 算法参数
+        @param algorithm_name: 算法名称
+        @param params: 算法参数
         :return: 算法结果
         """
         algorithm = self.factory.create_algorithm(algorithm_name)

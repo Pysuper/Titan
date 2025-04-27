@@ -44,8 +44,8 @@ class MessageMiddleware:
     def send_message(self, message: Any, priority: int = 0):
         """
         发送消息
-        :param message: 消息内容
-        :param priority: 消息优先级 (越大优先级越高)
+        @param message: 消息内容
+        @param priority: 消息优先级 (越大优先级越高)
         """
         with self._lock:
             msg = Message(message, priority)
@@ -108,21 +108,21 @@ class MessageMiddleware:
     def subscribe(self, callback: Callable[[Message], None]):
         """
         订阅消息
-        :param callback: 接收消息的回调函数
+        @param callback: 接收消息的回调函数
         """
         self._subscribers.append(callback)
 
     def unsubscribe(self, callback: Callable[[Message], None]):
         """
         取消订阅
-        :param callback: 要取消的回调函数
+        @param callback: 要取消的回调函数
         """
         self._subscribers.remove(callback)
 
     def _notify_subscribers(self, message: Message):
         """
         通知所有订阅者
-        :param message: 要广播的消息
+        @param message: 要广播的消息
         """
         for subscriber in self._subscribers:
             subscriber(message)
@@ -130,7 +130,7 @@ class MessageMiddleware:
     def filter_messages(self, condition: Callable[[Any], bool]) -> List[Any]:
         """
         根据条件筛选消息
-        :param condition: 筛选条件函数
+        @param condition: 筛选条件函数
         :return: 符合条件的消息列表
         """
         with self._lock:
@@ -139,7 +139,7 @@ class MessageMiddleware:
     def remove_messages(self, condition: Callable[[Any], bool]):
         """
         根据条件移除消息
-        :param condition: 移除条件函数
+        @param condition: 移除条件函数
         """
         with self._lock:
             self._messages = deque([msg for msg in self._messages if not condition(msg.content)])
@@ -153,7 +153,7 @@ class MessageMiddleware:
     def process_messages(self, processor: Callable[[Any], None]):
         """
         处理所有消息
-        :param processor: 处理消息的函数
+        @param processor: 处理消息的函数
         """
         while True:
             message = self.get_message()

@@ -57,7 +57,7 @@ def memory_cache(expire_time: int = 60):
     """
     内存缓存装饰器
 
-    :param expire_time: 缓存过期时间(秒),默认60秒
+    @param expire_time: 缓存过期时间(秒),默认60秒
     :return: 装饰器函数
     """
     cache = {}
@@ -84,7 +84,7 @@ def redis_cache(expire_time: int = 60):
     """
     Redis缓存装饰器
 
-    :param expire_time: 缓存过期时间(秒),默认60秒
+    @param expire_time: 缓存过期时间(秒),默认60秒
     :return: 装饰器函数
     """
 
