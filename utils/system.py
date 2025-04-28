@@ -10,10 +10,8 @@
 import platform
 import subprocess
 
-from proxy.config.logs import logger
 
-
-def close_port(port):
+def close_port(port, logger):
     """
     关闭指定端口号的进程
     @param port: 需要关闭的端口号
@@ -34,9 +32,9 @@ def close_port(port):
 
         # 根据不同操作系统选择不同处理方式
         if system == "windows":
-            return _close_port_windows(port)
+            return _close_port_windows(port, logger)
         elif system in ("linux", "darwin"):  # Linux 和 macOS
-            return _close_port_unix(port)
+            return _close_port_unix(port, logger)
         else:
             logger.error(f"不支持的操作系统: {system}")
             return False
@@ -45,7 +43,7 @@ def close_port(port):
         return False
 
 
-def _close_port_windows(port):
+def _close_port_windows(port, logger):
     """
     在 Windows 系统上关闭指定端口
     @param port: 需要关闭的端口号
@@ -79,7 +77,7 @@ def _close_port_windows(port):
         return False
 
 
-def _close_port_unix(port):
+def _close_port_unix(port, logger):
     """
     在 Unix-like 系统 (Linux/macOS) 上关闭指定端口
     @param port: 需要关闭的端口号

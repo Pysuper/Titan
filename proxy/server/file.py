@@ -1,12 +1,12 @@
 # -*- coding:utf-8 -*-
 """
 @Project ：Titan
-@File    ：stream.py
+@File    ：file.py
 @Author  ：PySuper
 @Date    ：2025-04-28 00:28
-@Desc    ：Titan stream
+@Desc    ：Titan file
 """
-from proxy.server.base import VideoStreamHandler
+from proxy.custom.file import VideoStreamHandler
 
 
 class AllStream(VideoStreamHandler):

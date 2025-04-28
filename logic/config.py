@@ -29,6 +29,7 @@ LOG_FORMAT = {
         "format": (
             "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
             "<level>{level: <8}</level> | "
+            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
             "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
             "<level>{message}</level>"
         ),
@@ -43,6 +44,7 @@ LOG_FORMAT = {
         "format": (
             "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
             "<level>{level: <8}</level> | "
+            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
             "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
             "<level>{message}</level>"
         ),
@@ -57,6 +59,7 @@ LOG_FORMAT = {
         "format": (
             "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
             "<level>{level: <8}</level> | "
+            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
             "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
             "<level>{message}</level>"
         ),
@@ -71,6 +74,7 @@ LOG_FORMAT = {
         "format": (
             "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
             "<level>{level: <8}</level> | "
+            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
             "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
             "<level>{message}</level>"
         ),
@@ -85,6 +89,7 @@ LOG_FORMAT = {
         "format": (
             "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
             "<level>{level: <8}</level> | "
+            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
             "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
             "<level>{message}</level>"
         ),
@@ -149,6 +154,14 @@ MODULE_CONFIGS = {
 }
 
 
+# 添加默认请求ID处理器
+def process_record(record):
+    """为日志记录添加默认的request_id"""
+    if "request_id" not in record["extra"]:
+        record["extra"]["request_id"] = "TiTan"
+    return record
+
+
 class LogConfig:
     """
     loguru日志配置类
@@ -179,7 +192,7 @@ class LogConfig:
             os.makedirs(module_log_dir)
 
         # 创建新的logger实例
-        module_logger = logger.bind(module=module)
+        module_logger = logger.bind(module=module, request_id="TiTan")
 
         # 清除默认的处理器
         if not cls._initialized:
@@ -200,6 +213,7 @@ class LogConfig:
                 diagnose=False,  # 不显示诊断信息
                 catch=True,  # 捕获获所有异常
                 enqueue=True,  # 异步日志
+                filter=process_record,  # 添加默认request_id
             )
             cls._console_handler_added = True
 
@@ -214,7 +228,9 @@ class LogConfig:
             level=config["level"],
             compression="zip",  # 压缩
             enqueue=True,  # 异步写入
-            filter=lambda record: record["extra"].get("module") == module,  # 只记录该模块的日志
+            filter=lambda record: (process_record(record), record["extra"].get("module") == module)[
+                1
+            ],  # 只记录该模块的日志并处理request_id
         )
 
         # 如果是error模块，添加错误日志处理器
@@ -229,6 +245,7 @@ class LogConfig:
                 level="ERROR",  # 只记录错误及以上级别
                 compression="zip",  # 压缩
                 enqueue=True,  # 异步写入
+                filter=process_record,  # 添加默认request_id
                 # 不过滤模块，记录所有错误
             )
 
@@ -249,19 +266,14 @@ class LogConfig:
         return cls._loggers[module]
 
 
-# 实例化默认logger
-# logic = LogConfig.setup_logger("default")
-
-
-# 不再预先创建所有模块的logger，而是在需要时通过get_logger获取
 def get_logger(module: str = "default") -> logger:
     """
-    获取指定模块的logger的便捷函数
+    获取指定模块的logger的快捷方式
 
     :param module: 模块名称
     :return: logger实例
     """
-    return LogConfig.get_logger(module)
+    return LogConfig.get_logger(module).bind(request_id=module)
 
 
 """

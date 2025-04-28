@@ -8,7 +8,7 @@
 
 from .http import HttpProxy
 from .ws import WsProxy
-from .stream import AllStream
+from .file import AllStream
 
 
 __all__ = [

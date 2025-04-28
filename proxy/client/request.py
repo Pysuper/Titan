@@ -11,7 +11,9 @@ import os
 from typing import Dict, Optional
 
 import requests
-from loguru import logger
+from logic.config import get_logger
+
+logger = get_logger("proxy")
 
 from decorators.request import class_retry_decorator
 
