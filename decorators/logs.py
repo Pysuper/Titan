@@ -9,7 +9,9 @@
 import functools
 import logging
 import time
+from datetime import datetime
 from typing import Any, Callable
+
 from logic.config import get_logger
 
 logger = get_logger(__name__)
@@ -274,3 +276,60 @@ def api_client_request(params):
 
 
 '''
+
+
+# 用于JSON日志的装饰器
+def json_log(func: Callable) -> Callable:
+    """
+    记录函数调用的JSON格式日志装饰器
+    """
+    json_logger = get_logger("json")
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # 准备函数调用信息
+        call_info = {
+            "function": func.__name__,
+            "module": func.__module__,
+            "args_count": len(args),
+            "kwargs_count": len(kwargs),
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        # 记录函数开始执行
+        json_logger.info(f"开始执行函数: {func.__name__}", extra={"call_info": call_info})
+
+        start_time = time.time()
+        try:
+            # 执行原函数
+            result = func(*args, **kwargs)
+
+            # 计算执行时间
+            execution_time = time.time() - start_time
+
+            # 记录成功执行信息
+            json_logger.info(
+                f"函数执行成功: {func.__name__}",
+                extra={"call_info": call_info, "execution_time": execution_time, "result_type": type(result).__name__},
+            )
+
+            return result
+        except Exception as e:
+            # 计算执行时间
+            execution_time = time.time() - start_time
+
+            # 记录异常信息
+            json_logger.error(
+                f"函数执行异常: {func.__name__}",
+                extra={
+                    "call_info": call_info,
+                    "execution_time": execution_time,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+
+            # 重新抛出异常
+            raise
+
+    return wrapper

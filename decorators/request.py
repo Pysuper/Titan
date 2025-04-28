@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict
 import requests
 from requests.exceptions import RequestException
 
-from logic.config import logic as logger
+from logic.config import logger
 
 
 def send_to_url(url: str, max_retries: int = 3, retry_interval: int = 2, timeout: int = 10):

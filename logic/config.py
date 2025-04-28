@@ -6,8 +6,10 @@
 @Desc    ：日志配置类
 """
 
+import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Dict
 
@@ -21,6 +23,40 @@ LOG_LEVEL = "debug" if DEBUG else "info"
 LOG_DIR = Path(__file__).resolve(strict=True).parent.parent / "logs"
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
+
+
+def json_formatter(record):
+    """
+    将日志记录格式化为JSON字符串
+    """
+    # 提取基本日志信息
+    log_data = {
+        "timestamp": datetime.fromtimestamp(record["time"].timestamp()).isoformat(),
+        "level": record["level"].name,
+        "message": record["message"],
+        "module": record["extra"].get("module", record["name"]),
+        "function": record["function"],
+        "line": record["line"],
+        "process_id": record["process"].id,
+        "thread_id": record["thread"].id,
+    }
+
+    # 添加额外信息
+    for key, value in record["extra"].items():
+        if key != "module":  # 避免重复
+            log_data[key] = value
+
+    # 添加异常信息（如果有）
+    if record["exception"]:
+        log_data["exception"] = {
+            "type": record["exception"].type.__name__,
+            "value": str(record["exception"].value),
+            "traceback": record["exception"].traceback,
+        }
+
+    # 返回格式化的JSON字符串
+    return json.dumps(log_data)
+
 
 # 自定义日志格式
 LOG_FORMAT = {
@@ -100,6 +136,14 @@ LOG_FORMAT = {
         "diagnose": False,  # 不显示诊断信息
         "catch": (Exception,),  # 捕获获所有异常
     },
+    "json": {  # 添加JSON格式
+        "format": json_formatter,
+        "colorize": False,  # JSON不需要颜色
+        "level": LOG_LEVEL.upper(),
+        "backtrace": False,
+        "diagnose": False,
+        "catch": (Exception,),
+    },
 }
 
 # 定义模块配置
@@ -151,6 +195,13 @@ MODULE_CONFIGS = {
         "retention": "90 days",
         "level": "ERROR",  # 只记录错误及以上级别
     },
+    "json": {  # 添加JSON日志配置
+        "file_name": "json_logs",
+        "rotation": "00:00",  # 每天午夜轮换
+        "retention": "30 days",
+        "level": LOG_LEVEL.upper(),
+        "format": "json",  # 使用JSON格式
+    },
 }
 
 
@@ -172,7 +223,7 @@ class LogConfig:
     _console_handler_added: bool = False
 
     @classmethod
-    def setup_logger(cls, module: str = "default") -> logger:
+    def setup_logger_back(cls, module: str = "default") -> logger:
         """
         配置和设置logger
 
@@ -248,6 +299,68 @@ class LogConfig:
                 filter=process_record,  # 添加默认request_id
                 # 不过滤模块，记录所有错误
             )
+
+        # 保存logger实例
+        cls._loggers[module] = module_logger
+        return module_logger
+
+    @classmethod
+    def setup_logger(cls, module: str = "default") -> logger:
+        """
+        配置和设置logger
+
+        :param module: 模块名称，用于选择配置和文件名
+        :return: 配置好的logger实例
+        """
+        # 如果已经初始化过该模块的logger，直接返回
+        if module in cls._loggers:
+            return cls._loggers[module]
+
+        # 获取模块配置，如果不存在则使用默认配置
+        config = MODULE_CONFIGS.get(module, MODULE_CONFIGS["default"])
+
+        # 创建该模块的日志目录
+        module_log_dir = LOG_DIR / module
+        if not os.path.exists(module_log_dir):
+            os.makedirs(module_log_dir)
+
+        # 创建新的logger实例
+        module_logger = logger.bind(module=module)
+
+        # 清除默认的处理器
+        if not cls._initialized:
+            logger.remove()
+            cls._initialized = True
+
+        # 配置日志格式
+        format_type = config.get("format", LOG_LEVEL)
+        log_format = LOG_FORMAT[format_type]["format"]
+
+        # 添加控制台处理器（只添加一次，避免重复输出）
+        if not cls._console_handler_added:
+            module_logger.add(
+                sys.stderr,  # 输出到控制台
+                format=LOG_FORMAT[LOG_LEVEL]["format"],  # 日志格式
+                colorize=LOG_FORMAT[LOG_LEVEL]["colorize"],  # 彩色日志
+                level=LOG_LEVEL.upper(),  # 日志等级
+                backtrace=False,  # 不显示回溯信息
+                diagnose=False,  # 不显示诊断信息
+                catch=True,  # 捕获获所有异常
+                enqueue=True,  # 异步日志
+            )
+            cls._console_handler_added = True
+
+        # 添加文件处理器，使用日期作为文件名的一部分，按日期轮换
+        file_handler = module_logger.add(
+            module_log_dir / f"{module}_{{time:YYYY-MM-DD}}.{'json' if format_type == 'json' else 'log'}",
+            rotation=config["rotation"],  # 轮换设置
+            retention=config["retention"],  # 保留天数
+            format=log_format,
+            level=config["level"],
+            compression="zip",  # 压缩
+            enqueue=True,  # 异步写入
+            filter=lambda record: record["extra"].get("module") == module,  # 只记录该模块的日志
+        )
 
         # 保存logger实例
         cls._loggers[module] = module_logger
