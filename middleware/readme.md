@@ -1,23 +1,26 @@
-跨域中间件：处理跨域请求。
-请求参数解析中间件：解析请求参数。
-响应结果序列化中间件：序列化响应结果。
-异常处理中间件：处理异常。
-日志中间件：记录请求日志。
-性能监控中间件：监控请求性能。
-安全中间件：保护算法接口。
-重试中间件：处理请求失败，重试请求。
-限流中间件：限制请求频率，防止恶意请求。
-超时中间件：设置请求超时时间，防止请求阻塞。
-鉴权中间件：验证请求身份，保护算法接口。
-缓存中间件：缓存请求结果，减少重复计算。
-负载均衡中间件：分发请求到不同的服务器。
-流量控制中间件：控制请求流量，防止恶意请求。
-流量监控中间件：监控请求流量，优化算法性能。
-流量调度中间件：调度请求流量，优化算法性能。
-流量转发中间件：转发请求流量，优化算法性能。
-流量压缩中间件：压缩请求流量，减少传输量。
-流量解压缩中间件：解压缩请求流量，恢复传输量。
-流量加密中间件：加密请求流量，保护数据安全。
-流量解密中间件：解密请求流量，恢复数据安全。
-流量重定向中间件：重定向请求流量，优化算法性能。
-流量路由中间件：路由请求流量，优化算法性能。
+# 中间件
+
+中间件是一种软件设计模式，它是一层软件组件，它在主应用程序和其他软件组件之间提供一个接口，以便在不修改主应用程序的情况下对其进行扩展。
+- request.py - 请求处理相关中间件： 
+  - RequestParserMiddleware - 请求参数解析 
+  - LoggingMiddleware - 日志记录 
+  - TimeoutMiddleware - 请求超时处理
+- security.py - 安全相关中间件：
+  - SecurityMiddleware - IP白名单和User-Agent检查
+  - AuthenticationMiddleware - API密钥认证
+  - EncryptionMiddleware - 响应加密
+  - DecryptionMiddleware - 请求解密
+- cache.py - 缓存相关中间件：
+  - CacheMiddleware - Redis缓存实现
+- discharge.py - 流量处理相关中间件：
+  - TrafficControlMiddleware - 流量控制
+  - CompressionMiddleware - 响应压缩
+  - DecompressionMiddleware - 请求解压缩
+  - LoadBalancerMiddleware - 负载均衡
+  - RedirectionMiddleware - 请求重定向
+- message.py - 消息处理相关中间件：
+  - ResponseSerializerMiddleware - 响应序列化
+  - ExceptionHandlerMiddleware - 异常处理
+  - PerformanceMonitorMiddleware - 性能监控
+  - TrafficMonitorMiddleware - 流量监控
+  - TrafficSchedulerMiddleware - 流量调度
