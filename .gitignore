@@ -1,6 +1,7 @@
 # PySuper
 .idea/
 .vscode/
+.target/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -6,18 +6,9 @@
 @Desc    ：Titan http.py
 """
 
-"""
-@Project ：Titan
-@File    ：http.py
-@Author  ：PySuper
-@Date    ：2025/4/25 13:53
-@Desc    ：Titan http.py
-"""
-
 from typing import Any, Dict
 
-
-from proxy.server.base import CustomHttp, logger
+from proxy.custom.http import CustomHttp, logger
 
 
 class HttpProxy(CustomHttp):

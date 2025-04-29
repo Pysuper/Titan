@@ -6,8 +6,13 @@
 @Desc    ：Backend main.py
 """
 
-from algorithm import MathA, MathB, MathC, ParamsA
-from decorators import log_exception, log_execution_time, log_function_call, send_to_url
+import json
+
+import requests
+
+from algorithm import MathA, MathB, MathC
+from config.algorithm import RESULT_SEND_URL
+from decorators import log_exception
 
 
 class AlgorithmFactory:
@@ -40,9 +45,9 @@ class Parse:
         self.main()
 
     @log_exception
-    @log_execution_time
-    @log_function_call
-    @send_to_url(url="http://localhost:8000/result")
+    # @log_execution_time
+    # @log_function_call
+    # @send_to_url(url=RESULT_SEND_URL) # 发送结果到指定url
     def execute_algorithm(self, algorithm_name, params):
         """
         执行算法
@@ -52,8 +57,9 @@ class Parse:
         """
         algorithm = self.factory.create_algorithm(algorithm_name)
         result = algorithm.parse(params)
-        print(result.a)
-        return result
+        response = requests.post(url=RESULT_SEND_URL, json=json.dumps(result))
+        print(response.text)
+        return {"status": "ok", "message": "A", "data": result}
 
     def main(self):
         # self.execute_algorithm("math-a", ParamsA(1))
@@ -62,8 +68,8 @@ class Parse:
         ...
 
 
-if __name__ == "__main__":
-    parse_math = Parse()
-    param = ParamsA(1)
-    url = "http://localhost:8080/result"
-    result = parse_math.execute_algorithm("math-a", param)
+# if __name__ == "__main__":
+#     parse_math = Parse()
+#     param = ParamsA(1)
+#     url = "http://localhost:8080/result"
+#     result = parse_math.execute_algorithm("math-a", param)
