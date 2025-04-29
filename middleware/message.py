@@ -6,11 +6,23 @@
 @Desc    ：处理消息中间件
 """
 
+import asyncio
+import json
 import threading
 import time
+import traceback
 from collections import deque
 from queue import PriorityQueue
-from typing import Any, List, Callable
+from typing import Any, List
+from typing import Callable, Dict
+
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from logic.config import get_logger
+
+logger = get_logger("middleware")
 
 
 class Message:
@@ -162,9 +174,151 @@ class MessageMiddleware:
             processor(message)
 
 
-# 使用示例:
-# middleware = MessageMiddleware()
-# middleware.send_message("Hello", priority=1)
-# middleware.send_message("World", priority=2)
-# print(middleware.get_priority_message())  # 输出: World
-# print(middleware.get_message())  # 输出: Hello
+class ResponseSerializerMiddleware(BaseHTTPMiddleware):
+    """响应序列化中间件"""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+
+        if response.headers.get("content-type") == "application/json":
+            body = b""
+            async for chunk in response.body_iterator:
+                body += chunk
+
+            try:
+                data = json.loads(body)
+                if not isinstance(data, dict) or not all(k in data for k in ["status", "message"]):
+                    data = {"status": "success", "message": "操作成功", "data": data}
+
+                return JSONResponse(content=data, status_code=response.status_code, headers=dict(response.headers))
+            except json.JSONDecodeError:
+                logger.warning("无法解析响应体为JSON")
+                return Response(
+                    content=body,
+                    status_code=response.status_code,
+                    headers=dict(response.headers),
+                    media_type=response.media_type,
+                )
+
+        return response
+
+
+class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
+    """异常处理中间件"""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        try:
+            return await call_next(request)
+        except Exception as e:
+            logger.error(f"请求处理异常: {str(e)}")
+            logger.debug(traceback.format_exc())
+            return JSONResponse(
+                status_code=500, content={"status": "error", "message": f"服务器内部错误: {str(e)}", "data": None}
+            )
+
+
+class PerformanceMonitorMiddleware(BaseHTTPMiddleware):
+    """性能监控中间件"""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = time.time() - start_time
+
+        response.headers["X-Process-Time"] = str(process_time)
+        logger.debug(f"请求 {request.method} {request.url.path} 处理时间: {process_time:.4f}秒")
+
+        if process_time > 1.0:
+            logger.warning(f"慢请求: {request.method} {request.url.path} 处理时间: {process_time:.4f}秒")
+
+        return response
+
+
+class TrafficMonitorMiddleware(BaseHTTPMiddleware):
+    """流量监控中间件"""
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.request_count = 0
+        self.start_time = time.time()
+        self.path_stats = {}
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        self.request_count += 1
+        path = request.url.path
+
+        if path not in self.path_stats:
+            self.path_stats[path] = {"count": 0, "total_time": 0}
+
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = time.time() - start_time
+
+        self.path_stats[path]["count"] += 1
+        self.path_stats[path]["total_time"] += process_time
+
+        if self.request_count % 100 == 0:
+            elapsed = time.time() - self.start_time
+            rps = self.request_count / elapsed if elapsed > 0 else 0
+            logger.info(f"流量统计: 总请求数: {self.request_count}, 运行时间: {elapsed:.2f}秒, RPS: {rps:.2f}")
+
+            for p, stats in sorted(self.path_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:5]:
+                avg_time = stats["total_time"] / stats["count"] if stats["count"] > 0 else 0
+                logger.info(f"路径统计: {p}, 请求数: {stats['count']}, 平均处理时间: {avg_time:.4f}秒")
+
+        return response
+
+
+class TrafficSchedulerMiddleware(BaseHTTPMiddleware):
+    """流量调度中间件"""
+
+    def __init__(self, app, priority_paths: Dict[str, int] = None):
+        super().__init__(app)
+        self.priority_paths = priority_paths or {}
+        self.request_queues = {}
+        self.processing = False
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        path = request.url.path
+        priority = 5  # 默认优先级
+
+        for prefix, prio in self.priority_paths.items():
+            if path.startswith(prefix):
+                priority = prio
+                break
+
+        if priority >= 8:
+            return await call_next(request)
+
+        future = asyncio.Future()
+        if priority not in self.request_queues:
+            self.request_queues[priority] = []
+        self.request_queues[priority].append((request, call_next, future))
+
+        if not self.processing:
+            asyncio.create_task(self._process_queues())
+
+        return await future
+
+    async def _process_queues(self):
+        """处理请求队列"""
+        self.processing = True
+
+        try:
+            while any(self.request_queues.values()):
+                for priority in sorted(self.request_queues.keys(), reverse=True):
+                    if self.request_queues[priority]:
+                        request, call_next, future = self.request_queues[priority].pop(0)
+
+                        try:
+                            response = await call_next(request)
+                            future.set_result(response)
+                        except Exception as e:
+                            future.set_exception(e)
+
+                        await asyncio.sleep(0)
+                        break
+                else:
+                    break
+        finally:
+            self.processing = False

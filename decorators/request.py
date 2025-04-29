@@ -268,6 +268,56 @@ def send_to_url_util(url: Optional[str] = None):
     return decorator
 
 
+# 限流装饰器
+def rate_limit(max_calls: int, period: int):
+    """
+    限流装饰器
+
+    Args:
+        max_calls: 最大调用次数
+        period: 限制周期（秒）
+    """
+
+    def decorator(func: Callable) -> Callable:
+        last_called = time.time() - period
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            nonlocal last_called
+            if time.time() - last_called < period / max_calls:
+                time.sleep((period / max_calls) - (time.time() - last_called))
+            result = func(*args, **kwargs)
+            last_called = time.time()
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+# 超时装饰器
+def timeout(seconds: int):
+    """
+    超时装饰器
+    Args:
+        seconds: 超时时间（秒）
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            result = None
+            try:
+                result = func(*args, **kwargs)
+            except Exception as e:  # 捕获所有异常
+                logger.error(f"Function {func.__name__} timed out after {seconds} seconds")
+            return result
+
+        return wrapper
+
+    return decorator
+
+
 @retry_(retries=5, delay=2)
 def my_function():
     #  这里是你的函数实现
