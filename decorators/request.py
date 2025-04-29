@@ -6,12 +6,15 @@
 @Desc    ：请求重试装饰器
 """
 
+import functools
 import inspect
 import json
 import time
 from functools import wraps
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Optional
+from typing import Dict
 
+import aiohttp
 import requests
 from requests.exceptions import RequestException
 
@@ -211,6 +214,54 @@ def _method_retry_decorator(max_retries: int, retry_interval: int, timeout: int)
                     logger.warning(f"将在 {retry_interval} 秒后重试...")
                     time.sleep(retry_interval)
             return None
+
+        return wrapper
+
+    return decorator
+
+
+def send_to_url_params(func):
+    """
+    发送结果到指定URL的装饰器
+    """
+
+    async def wrapper(self, algorithm_name, params, url, *args, **kwargs):
+        # 先执行原始函数获取结果
+        result = await func(self, algorithm_name, params, url, *args, **kwargs)
+
+        # 发送结果到指定URL
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=result) as response:
+                return await response.json()
+
+    return wrapper
+
+
+def send_to_url_util(url: Optional[str] = None):
+    """
+    将函数结果发送到指定URL的装饰器
+
+    Args:
+        url: 要发送结果的URL，如果为None则不发送
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            # 执行原始函数
+            result = func(*args, **kwargs)
+
+            # 如果提供了URL，则发送结果
+            if url:
+                try:
+                    response = requests.post(url, json=result)
+                    response.raise_for_status()
+                    logger.info(f"Successfully sent result to {url}")
+                except Exception as e:
+                    logger.exception(f"Error sending result to {url}: {str(e)}")
+
+            # 返回原始函数的结果
+            return result
 
         return wrapper
 
