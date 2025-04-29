@@ -18,7 +18,7 @@ from websockets.exceptions import ConnectionClosed, ConnectionClosedError, Conne
 
 from logic.config import get_logger
 
-logger = get_logger("proxy")
+logger = get_logger("proxy-websocket")
 
 
 class WebSocketState(Enum):
@@ -217,7 +217,7 @@ class WebSocketClient:
                 logger.warning(f"关闭连接时出错: {str(e)}")
 
         self.state = WebSocketState.DISCONNECTED
-        logger.info("已断开连接")
+        logger.debug("已断开连接")
 
         # 触发断开连接回调
         for callback in self.on_disconnect_callbacks:
@@ -473,7 +473,7 @@ class WebSocketClient:
                 if self.state == WebSocketState.DISCONNECTED and self.auto_reconnect:
                     await self.reconnect()
         except asyncio.CancelledError:
-            logger.info("接收到取消信号，正在退出...")
+            logger.debug("接收到取消信号，正在退出...")
             self.should_exit = True
         except KeyboardInterrupt:
             logger.info("接收到键盘中断，正在退出...")

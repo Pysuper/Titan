@@ -20,7 +20,7 @@ from proxy.server import HttpProxy, WsProxy
 from utils.system import close_port
 
 # 创建一个系统级别的logger
-logger = get_logger("proxy")
+logger = get_logger("proxy-server")
 
 
 def make_app():
