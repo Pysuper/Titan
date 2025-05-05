@@ -8,10 +8,23 @@
 
 
 def is_token_valid():
+    """
+    检查 token 是否有效
+    :return:
+    """
+    # 加入鉴权逻辑，例如检查 token 有效性
+    # 示例：从 headers 头部获取 token，然后与后台验证 token 有效性
+    # 注意：此处需要与后台 API 进行交互
+    # TODO: 加入鉴权逻辑
     pass
 
 
 def is_ip_in_whitelist():
+    """
+    检查 IP 是否在白名单内
+    :return:
+    """
+    # 加入 IP 白名单逻辑，例如检查当前请求 IP 是否在白名单内
     pass
 
 

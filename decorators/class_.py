@@ -14,9 +14,15 @@ import time
 
 # 单例装饰器
 def singleton(cls):
+    """
+    单例装饰器，确保在整个程序中只创建一个实例
+    """
     instances = {}
 
     def get_instance(*args, **kwargs):
+        """
+        获取单例实例
+        """
         if cls not in instances:
             instances[cls] = cls(*args, **kwargs)
         return instances[cls]

@@ -58,7 +58,12 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         if not api_key or (self.api_keys and api_key not in self.api_keys):
             logger.warning(f"未授权访问: {request.url.path}, API密钥: {api_key}")
             return JSONResponse(
-                status_code=401, content={"status": "error", "message": "未授权访问，请提供有效的API密钥", "data": None}
+                status_code=401,
+                content={
+                    "status": "error",
+                    "message": "未授权访问，请提供有效的API密钥",
+                    "data": None,
+                },
             )
 
         request.state.api_key = api_key

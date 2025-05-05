@@ -8,6 +8,7 @@
 
 import functools
 import logging
+
 import time
 from datetime import datetime
 from typing import Any, Callable
@@ -333,3 +334,77 @@ def json_log(func: Callable) -> Callable:
             raise
 
     return wrapper
+
+
+# ------------------------------ 整合 ---------------
+def enhanced_logger(
+    show_args: bool = True,  # 是否记录函数参数
+    show_return: bool = True,  # 是否记录返回值
+    time_threshold: float = 0.3,  # 执行时间阈值，超过此阈值将以警告级别记录
+    context_key: str = None,  # 上下文信息的键名，如果提供，将尝试从第一个参数中获取此属性作为上下文
+) -> Callable:
+    """增强版函数调用日志
+
+    :param show_args: 是否记录函数参数
+    :param show_return: 是否记录返回值
+    :param time_threshold: 执行时间阈值，超过此阈值将以警告级别记录
+    :param context_key: 上下文信息的键名，如果提供，将尝试从第一个参数中获取此属性作为上下文
+    :return: 装饰器
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            # 获取上下文信息
+            context = None
+            if context_key and args:
+                context = getattr(args[0], context_key, None)
+
+            extra = {context_key: context} if context else {}
+
+            # 参数记录
+            if show_args:
+                args_repr = [repr(a) for a in args]
+                kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]
+                signature = ", ".join(args_repr + kwargs_repr)
+                logger.debug(f"调用函数 {func.__name__}({signature})", extra=extra)
+            else:
+                logger.debug(f"调用函数 {func.__name__}", extra=extra)
+
+            # 记录开始时间
+            start_time = time.perf_counter()
+
+            try:
+                # 执行函数
+                result = func(*args, **kwargs)
+
+                # 计算执行时间
+                elapsed = time.perf_counter() - start_time
+
+                # 根据阈值记录执行时间
+                if elapsed > time_threshold:
+                    logger.warning(f"{func.__name__} 执行耗时 {elapsed:.4f}秒 (阈值 {time_threshold}秒)", extra=extra)
+                else:
+                    logger.info(f"{func.__name__} 执行耗时 {elapsed:.4f}秒", extra=extra)
+
+                # 返回值记录
+                if show_return:
+                    logger.debug(f"{func.__name__} 返回值类型: {type(result).__name__}, 值: {result!r}", extra=extra)
+                else:
+                    logger.debug(f"{func.__name__} 执行完成", extra=extra)
+
+                return result
+
+            except Exception as e:
+                # 计算执行时间
+                elapsed = time.perf_counter() - start_time
+
+                # 记录异常信息，保留原始堆栈
+                logger.exception(f"函数 {func.__name__} 执行异常，耗时 {elapsed:.4f}秒: {str(e)}", extra=extra)
+
+                # 重新抛出异常，保留原始堆栈
+                raise
+
+        return wrapper
+
+    return decorator

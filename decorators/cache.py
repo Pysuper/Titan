@@ -6,7 +6,6 @@
 @Desc    ：缓存装饰器
 """
 
-import functools
 import time
 from typing import Any, Callable
 
@@ -49,15 +48,17 @@ import functools
 
 @functools.lru_cache(maxsize=None)
 def example_function(x, y):
+    """
+    Python自带的缓存装饰器
+    """
     return x + y
 
 
-# 内存缓存装饰器
 def memory_cache(expire_time: int = 60):
     """
     内存缓存装饰器
 
-    @param expire_time: 缓存过期时间(秒),默认60秒
+    :param expire_time: 缓存过期时间(秒),默认60秒
     :return: 装饰器函数
     """
     cache = {}
@@ -79,12 +80,11 @@ def memory_cache(expire_time: int = 60):
     return decorator
 
 
-# Redis缓存装饰器
 def redis_cache(expire_time: int = 60):
     """
     Redis缓存装饰器
 
-    @param expire_time: 缓存过期时间(秒),默认60秒
+    :param expire_time: 缓存过期时间(秒),默认60秒
     :return: 装饰器函数
     """
 
@@ -92,12 +92,12 @@ def redis_cache(expire_time: int = 60):
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
-            # result = redis_client.get(key)
-            # if result:
-            #     return result
-            # result = func(*args, **kwargs)
-            # redis_client.setex(key, expire_time, result)
-            # return result
+            result = redis_client.get(key)
+            if result:
+                return result
+            result = func(*args, **kwargs)
+            redis_client.setex(key, expire_time, result)
+            return result
 
         return wrapper
 

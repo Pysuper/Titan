@@ -14,15 +14,17 @@ from algorithm import MathA, MathB, MathC
 from config.algorithm import RESULT_SEND_URL
 from decorators import log_exception
 
+ALGORITHM_CONFIG = {
+    "math-a": MathA,
+    "math-b": MathB,
+    "math-c": MathC,
+}
+
 
 class AlgorithmFactory:
     def __init__(self):
         self._instances = {}
-        self._algorithms = {
-            "math-a": MathA,
-            "math-b": MathB,
-            "math-c": MathC,
-        }
+        self._algorithms = ALGORITHM_CONFIG
 
     def create_algorithm(self, name):
         """

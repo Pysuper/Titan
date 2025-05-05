@@ -11,8 +11,13 @@ import dataclasses
 
 # TODO: 考虑如何将这些参数，传递到运行的方法中
 
+
 @dataclasses.dataclass
 class SendResult:
+    """
+    发送结果
+    """
+
     max_retries: int
     retry_interval: int
     timeout: int

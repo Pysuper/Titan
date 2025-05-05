@@ -30,7 +30,6 @@ def bar(desc="", unit="it"):
     def decorator(func):
         def inner(*args, **kwargs):
             pbar = None
-
             gen = func(*args, **kwargs)
 
             try:
@@ -38,11 +37,9 @@ def bar(desc="", unit="it"):
                     i = next(gen)
                     if pbar is None:
                         pbar = trange(i, desc=desc, unit=unit)
-
                     pbar.update(1)
             except StopIteration as e:
                 pbar.close()
-
                 return e.value
 
         return inner
@@ -50,6 +47,7 @@ def bar(desc="", unit="it"):
     return decorator
 
 
+@timer
 @bar(desc="测试的进度条")
 def main():
     total = 100
@@ -60,3 +58,6 @@ def main():
         time.sleep(0.05)
 
     return "我是函数的结果"
+
+
+main()

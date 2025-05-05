@@ -6,261 +6,14 @@
 @Desc    ：日志配置类
 """
 
-import datetime
-import json
 import os
-import pprint
 import sys
-from pathlib import Path
 from typing import Dict
 
 from loguru import logger
 
-# 统一日志等级
-DEBUG = True
-LOG_LEVEL = "debug" if DEBUG else "info"
-
-# 定义日志路径
-LOG_DIR = Path(__file__).resolve(strict=True).parent.parent / "logs"
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
-
-
-def json_formatter(record):
-    """
-    将日志记录格式化为JSON字符串
-    """
-    # 提取基本日志信息
-    log_data = {
-        # "timestamp": datetime.fromtimestamp(record["time"].timestamp()).isoformat(),
-        "timestamp": datetime.datetime.now().isoformat(),  # 自动添加时间戳
-        "level": record["level"].name,
-        "message": record["message"],
-        "module": record["extra"].get("module", record["name"]),
-        "function": record["function"],
-        "line": record["line"],
-        "process_id": record["process"].id,
-        "thread_id": record["thread"].id,
-    }
-
-    # 添加额外信息
-    for key, value in record["extra"].items():
-        if key != "module":  # 避免重复
-            log_data[key] = value
-
-    # 添加异常信息（如果有）
-    if record["exception"]:
-        log_data["exception"] = {
-            "type": record["exception"].type.__name__,
-            "value": str(record["exception"].value),
-            "traceback": record["exception"].traceback,
-        }
-
-    # 返回格式化的JSON字符串
-    return json.dumps(log_data, ensure_ascii=False)  # 确保中文字符正确显示
-
-
-def pretty_json_serializer(record):
-    """
-    将日志记录序列化为格式化的JSON字符串，用于控制台输出
-    """
-    # 提取基本日志信息
-    log_data = {
-        "timestamp": datetime.datetime.now().isoformat(),
-        "level": record["level"].name,
-        "message": record["message"],
-        "module": record["extra"].get("module", record["name"]),
-        "function": record["function"],
-        "line": record["line"],
-    }
-
-    # 添加额外信息
-    for key, value in record["extra"].items():
-        if key != "module":  # 避免重复
-            log_data[key] = value
-
-    # 添加异常信息（如果有）
-    if record["exception"]:
-        log_data["exception"] = {
-            "type": record["exception"].type.__name__,
-            "value": str(record["exception"].value),
-            "traceback": record["exception"].traceback,
-        }
-
-    # 使用pprint格式化输出
-    return pprint.pformat(log_data, indent=2, width=100)
-
-
-# 自定义日志格式
-LOG_FORMAT = {
-    # 定义几个不同等级的日志格式
-    "info": {
-        "format": (
-            "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-            "<level>{message}</level>"
-        ),
-        "colorize": True,  # 彩色日志
-        "extra": {"function": lambda record: record["function"].split(".")[-1]},  # 记录函数名
-        "level": "INFO",
-        "backtrace": False,  # 不显示回溯信息
-        "diagnose": False,  # 不显示诊断信息
-        "catch": (Exception,),  # 捕获获所有异常
-    },
-    "debug": {
-        "format": (
-            "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-            "<level>{message}</level>"
-        ),
-        "colorize": True,  # 彩色日志
-        "extra": {"function": lambda record: record["function"].split(".")[-1]},  # 记录函数名
-        "level": "DEBUG",
-        "backtrace": False,  # 不显示回溯信息
-        "diagnose": False,  # 不显示诊断信息
-        "catch": (Exception,),  # 捕获获所有异常
-    },
-    "warning": {
-        "format": (
-            "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-            "<level>{message}</level>"
-        ),
-        "colorize": True,  # 彩色日志
-        "extra": {"function": lambda record: record["function"].split(".")[-1]},  # 记录函数名
-        "level": "WARNING",
-        "backtrace": False,  # 不显示回溯信息
-        "diagnose": False,  # 不显示诊断信息
-        "catch": (Exception,),  # 捕获获所有异常
-    },
-    "error": {
-        "format": (
-            "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-            "<level>{message}</level>"
-        ),
-        "colorize": True,  # 彩色日志
-        "extra": {"function": lambda record: record["function"].split(".")[-1]},  # 记录函数名
-        "level": "ERROR",
-        "backtrace": False,  # 不显示回溯信息
-        "diagnose": False,  # 不显示诊断信息
-        "catch": (Exception,),  # 捕获获所有异常
-    },
-    "critical": {
-        "format": (
-            "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{extra[request_id]}</cyan> | "  # 添加请求ID
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-            "<level>{message}</level>"
-        ),
-        "colorize": True,  # 彩色日志
-        "extra": {"function": lambda record: record["function"].split(".")[-1]},  # 记录函数名
-        "level": "CRITICAL",
-        "backtrace": False,  # 不显示回溯信息
-        "diagnose": False,  # 不显示诊断信息
-        "catch": (Exception,),  # 捕获获所有异常
-    },
-    "json": {  # 添加JSON格式
-        "format": "{message}",  # 使用简单的消息格式，实际内容将由serialize处理
-        "colorize": False,  # JSON不需要颜色
-        "level": LOG_LEVEL.upper(),
-        "backtrace": False,
-        "diagnose": False,
-        "catch": (Exception,),
-        "serialize": True,  # 启用序列化
-    },
-    "pretty_json": {  # 添加美化JSON格式
-        "format": "{message}",  # 使用简单的消息格式，实际内容将由serialize处理
-        "colorize": True,  # 美化输出需要颜色
-        "level": LOG_LEVEL.upper(),
-        "backtrace": False,
-        "diagnose": False,
-        "catch": (Exception,),
-        "serialize": pretty_json_serializer,  # 使用自定义序列化函数
-    },
-}
-
-# 定义模块配置
-MODULE_CONFIGS = {
-    "default": {
-        "file_name": "titan",
-        # "rotation": "500 MB",  # 使用大小轮换
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "30 days",
-        "level": LOG_LEVEL.upper(),
-    },
-    "algorithm": {
-        "file_name": "algorithm",
-        # "rotation": "500 MB",  # 使用大小轮换
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "30 days",
-        "level": LOG_LEVEL.upper(),
-    },
-    "proxy": {
-        "file_name": "proxy",
-        # "rotation": "200 MB",  # 使用大小轮换
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "15 days",
-        "level": LOG_LEVEL.upper(),
-    },
-    "middleware": {
-        "file_name": "middleware",
-        # "rotation": "200 MB",  # 使用大小轮换
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "15 days",
-        "level": LOG_LEVEL.upper(),
-    },
-    "request": {
-        "file_name": "request",
-        # "rotation": "100 MB",  # 使用大小轮换
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "7 days",
-        "level": LOG_LEVEL.upper(),
-    },
-    "performance": {
-        "file_name": "performance",
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "90 days",
-        "level": "INFO",  # 性能日志通常只需要INFO级别
-    },
-    "error": {
-        "file_name": "error",
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "90 days",
-        "level": "ERROR",  # 只记录错误及以上级别
-    },
-    "json": {  # 添加JSON日志配置
-        "file_name": "json_logs",
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "30 days",
-        "level": LOG_LEVEL.upper(),
-        "format": "json",  # 使用JSON格式
-    },
-    "pretty_json": {  # 添加美化JSON日志配置
-        "file_name": "pretty_json_logs",
-        "rotation": "00:00",  # 每天午夜轮换
-        "retention": "30 days",
-        "level": LOG_LEVEL.upper(),
-        "format": "pretty_json",  # 使用美化JSON格式
-    },
-}
-
-
-# 添加默认请求ID处理器
-def process_record(record):
-    """为日志记录添加默认的request_id"""
-    if "request_id" not in record["extra"]:
-        record["extra"]["request_id"] = "TiTan"
-    return record
+from logic.setting import LOG_DIR, LOG_FORMAT, LOG_LEVEL, MODULE_CONFIGS
+from logic.utils import pretty_json_serializer, process_record
 
 
 class LogConfig:
@@ -421,43 +174,115 @@ class LogConfig:
         format_type = config.get("format", LOG_LEVEL)
         log_format = LOG_FORMAT[format_type]["format"]
 
-        # 添加控制台处理器（只添加一次，避免重复输出）
+        # # 添加控制台处理器（只添加一次，避免重复输出）
+        # if not cls._console_handler_added:
+        #     # 根据格式类型选择控制台输出格式
+        #     console_format = (
+        #         log_format if format_type not in ["json", "pretty_json"] else LOG_FORMAT[LOG_LEVEL]["format"]
+        #     )
+        #
+        #     # 准备处理器参数
+        #     handler_params = {
+        #         "sink": sys.stderr,  # 输出到控制台
+        #         "format": console_format,  # 日志格式
+        #         "colorize": LOG_FORMAT[format_type]["colorize"],  # 彩色日志
+        #         "level": LOG_LEVEL.upper(),  # 日志等级
+        #         "backtrace": False,  # 不显示回溯信息
+        #         "diagnose": False,  # 不显示诊断信息
+        #         "catch": True,  # 捕获获所有异常
+        #         "enqueue": True,  # 异步日志
+        #         "filter": process_record,  # 添加默认request_id
+        #     }
+        #
+        #     # 如果是JSON格式，添加序列化参数
+        #     if format_type == "json":
+        #         handler_params["serialize"] = True
+        #     elif format_type == "pretty_json":
+        #         handler_params["serialize"] = True
+        #         handler_params["format"] = "{message}"
+        #         handler_params["serialize_format"] = pretty_json_serializer
+        #
+        #     module_logger.add(**handler_params)
+        #     cls._console_handler_added = True
+        #
+        # # 添加文件处理器，使用日期作为文件名的一部分，按日期轮换
+        # file_extension = "json" if format_type in ["json", "pretty_json"] else "log"
+        #
+        # # 准备文件处理器参数
+        # file_handler_params = {
+        #     "sink": module_log_dir / f"{module}_{{time:YYYY-MM-DD}}.{file_extension}",
+        #     "rotation": config["rotation"],  # 轮换设置
+        #     "retention": config["retention"],  # 保留天数
+        #     "format": log_format,
+        #     "level": config["level"],
+        #     "compression": "zip",  # 压缩
+        #     "enqueue": True,  # 异步写入
+        #     "filter": lambda record: record["extra"].get("module") == module,  # 只记录该模块的日志
+        # }
+        #
+        # # 如果是JSON格式，添加序列化参数
+        # if format_type == "json":
+        #     file_handler_params["serialize"] = True
+        # elif format_type == "pretty_json":
+        #     file_handler_params["serialize"] = True
+        #     file_handler_params["format"] = "{message}"
+        #
+        # file_handler = module_logger.add(**file_handler_params)
+        #
+        # # 保存logger实例
+        # cls._loggers[module] = module_logger
+        # return module_logger
+
         if not cls._console_handler_added:
-            # 根据格式类型选择控制台输出格式
-            console_format = (
-                log_format if format_type not in ["json", "pretty_json"] else LOG_FORMAT[LOG_LEVEL]["format"]
-            )
-
-            # 准备处理器参数
-            handler_params = {
-                "sink": sys.stderr,  # 输出到控制台
-                "format": console_format,  # 日志格式
-                "colorize": LOG_FORMAT[format_type]["colorize"],  # 彩色日志
-                "level": LOG_LEVEL.upper(),  # 日志等级
-                "backtrace": False,  # 不显示回溯信息
-                "diagnose": False,  # 不显示诊断信息
-                "catch": True,  # 捕获获所有异常
-                "enqueue": True,  # 异步日志
-                "filter": process_record,  # 添加默认request_id
-            }
-
-            # 如果是JSON格式，添加序列化参数
-            if format_type == "json":
-                handler_params["serialize"] = True
-            elif format_type == "pretty_json":
-                handler_params["serialize"] = True
-                handler_params["format"] = "{message}"
-                handler_params["serialize_format"] = pretty_json_serializer
-
-            module_logger.add(**handler_params)
+            # 添加控制台处理器（只添加一次，避免重复输出）
+            cls._add_console_handler(module_logger, format_type, log_format)
             cls._console_handler_added = True
 
+        # 添加文件处理器
+        cls._add_file_handler(module_logger, module, config, format_type, log_format)
+
+        # 保存logger实例
+        cls._loggers[module] = module_logger
+        return module_logger
+
+    @classmethod
+    def _add_console_handler(cls, module_logger, format_type, log_format):
+        """添加控制台处理器"""
+        # 根据格式类型选择控制台输出格式
+        console_format = log_format if format_type not in ["json", "pretty_json"] else LOG_FORMAT[LOG_LEVEL]["format"]
+
+        # 准备处理器参数
+        handler_params = {
+            "sink": sys.stderr,  # 输出到控制台
+            "format": console_format,  # 日志格式
+            "colorize": LOG_FORMAT[format_type]["colorize"],  # 彩色日志
+            "level": LOG_LEVEL.upper(),  # 日志等级
+            "backtrace": False,  # 不显示回溯信息
+            "diagnose": False,  # 不显示诊断信息
+            "catch": True,  # 捕获所有异常
+            "enqueue": True,  # 异步日志
+            "filter": process_record,  # 添加默认request_id
+        }
+
+        # 如果是JSON格式，添加序列化参数
+        if format_type == "json":
+            handler_params["serialize"] = True
+        elif format_type == "pretty_json":
+            handler_params["serialize"] = True
+            handler_params["format"] = "{message}"
+            handler_params["serialize_format"] = pretty_json_serializer
+
+        module_logger.add(**handler_params)
+
+    @classmethod
+    def _add_file_handler(cls, module_logger, module, config, format_type, log_format):
+        """添加文件处理器"""
         # 添加文件处理器，使用日期作为文件名的一部分，按日期轮换
         file_extension = "json" if format_type in ["json", "pretty_json"] else "log"
 
         # 准备文件处理器参数
         file_handler_params = {
-            "sink": module_log_dir / f"{module}_{{time:YYYY-MM-DD}}.{file_extension}",
+            "sink": LOG_DIR / module / f"{module}_{{time:YYYY-MM-DD}}.{file_extension}",
             "rotation": config["rotation"],  # 轮换设置
             "retention": config["retention"],  # 保留天数
             "format": log_format,
@@ -474,11 +299,38 @@ class LogConfig:
             file_handler_params["serialize"] = True
             file_handler_params["format"] = "{message}"
 
-        file_handler = module_logger.add(**file_handler_params)
+        module_logger.add(**file_handler_params)
 
-        # 保存logger实例
-        cls._loggers[module] = module_logger
-        return module_logger
+        # 如果是error模块，添加错误日志处理器
+        if module == "error":
+            cls._add_error_handler(module_logger, module, format_type, log_format)
+
+    @classmethod
+    def _add_error_handler(cls, module_logger, module, format_type, log_format):
+        """添加错误日志处理器"""
+        file_extension = "json" if format_type in ["json", "pretty_json"] else "log"
+
+        # 准备错误日志处理器参数
+        error_handler_params = {
+            "sink": LOG_DIR / module / f"all_errors_{{time:YYYY-MM-DD}}.{file_extension}",
+            "rotation": "500 MB",  # 按大小轮换
+            "retention": "90 days",  # 保留90天
+            "format": log_format,
+            "level": "ERROR",  # 只记录错误及以上级别
+            "compression": "zip",  # 压缩
+            "enqueue": True,  # 异步写入
+            "filter": process_record,  # 添加默认request_id
+        }
+
+        # 如果是JSON格式，添加序列化参数
+        if format_type == "json":
+            error_handler_params["serialize"] = True
+        elif format_type == "pretty_json":
+            error_handler_params["serialize"] = True
+            error_handler_params["format"] = "{message}"
+
+        # 添加错误日志处理器（记录所有模块的错误）
+        module_logger.add(**error_handler_params)
 
     @classmethod
     def get_logger(cls, module: str = "default") -> logger:

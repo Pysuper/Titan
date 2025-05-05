@@ -6,6 +6,7 @@
 @Desc    ：Titan validate.py
 """
 
+import time
 import warnings
 from functools import wraps
 
@@ -69,27 +70,83 @@ def deprecated(func):
 # ---------------------------------- 性能度量器
 import cProfile
 from functools import wraps
+from loguru import logger
 
 
 def performance_metric(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
+        # 使用cProfile进行性能度量
         profiler = cProfile.Profile()
+        # 启动性能度量
         profiler.enable()
+        # 执行函数
         result = func(*args, **kwargs)
+        # 停止性能度量
         profiler.disable()
+        # 打印性能度量结果
         profiler.print_stats()
+        # 清除性能度量
+        # profiler.clear()
+        # 调用原始函数
         return result
 
     return wrapper
 
 
+# 测量执行时间
+def timer(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        logger.info(f"{func.__name__} 耗时: {end_time - start_time:.2f} 秒")
+        return result
+
+    return wrapper
+
+
+# ------------------------ 进度条
+import time
+from tqdm import trange
+
+
+def bar(desc="", unit="it"):
+    def decorator(func):
+        def inner(*args, **kwargs):
+            pbar = None
+            gen = func(*args, **kwargs)
+
+            try:
+                while True:
+                    i = next(gen)
+                    if pbar is None:
+                        pbar = trange(i, desc=desc, unit=unit)
+                    pbar.update(1)
+            except StopIteration as e:
+                pbar.close()
+                return e.value
+
+        return inner
+
+    return decorator
+
+
+@timer
+@bar(desc="测试的进度条")
 @performance_metric
-def my_function():
-    #  这里是你的函数实现
-    pass
+def main():
+    total = 100
+    yield total
+
+    for i in range(total):
+        yield
+        time.sleep(0.05)
+
+    return "我是函数的结果"
 
 
+main()
 """
 
 import matplotlib.pyplot as plt
