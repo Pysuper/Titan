@@ -2,7 +2,7 @@
 @Project ：Titan
 @File    ：http.py
 @Author  ：PySuper
-@Date    ：2025/4/28 11:38
+@Date    ：2025/5/1 12:12
 @Desc    ：Titan http.py
 """
 
@@ -47,29 +47,34 @@ from enum import Enum
 class ResponseStatus(str, Enum):
     """响应状态枚举"""
 
-    SUCCESS = "success"
-    ERROR = "error"
-    WARNING = "warning"
-    INFO = "info"
+    SUCCESS = "success"  # 成功
+    ERROR = "error"  # 错误
+    WARNING = "warning"  # 警告
+    INFO = "info"  # 信息
 
 
 @dataclass
 class SavedFile:
     """保存的文件信息"""
 
-    original_name: str
-    saved_name: str
-    file_path: str
-    file_size: int
-    content_type: str
-    upload_time: str
-    unique_id: str
+    original_name: str  # 原始文件名
+    saved_name: str  # 保存后的文件名
+    file_path: str  # 文件路径
+    file_size: int  # 文件大小
+    content_type: str  # 文件类型
+    upload_time: str  # 上传时间
+    unique_id: str  # 唯一ID
 
 
 class JSONEncoder(json.JSONEncoder):
     """扩展的JSON编码器，支持更多Python类型"""
 
     def default(self, obj):
+        """
+        扩展JSON编码器的默认行为，支持更多Python类型
+        :param obj: 要编码的对象
+        :return: 编码后的对象
+        """
         if isinstance(obj, datetime):
             return obj.isoformat()
         if hasattr(obj, "__dict__"):
@@ -116,9 +121,9 @@ class CustomHttp(tornado.web.RequestHandler):
         """
         返回HTTP错误响应
 
-        Args:
-            msg: 错误信息
-            status_code: HTTP状态码，默认为400
+        :param msg: 错误信息
+        :param status_code: HTTP状态码，默认为400
+        :return: None
         """
         logger.error(f"HTTP错误 [{self._request_id}]: {msg}")
         self.set_status(status_code)
@@ -128,10 +133,9 @@ class CustomHttp(tornado.web.RequestHandler):
     def http_success(self, data: Any = None, message: str = "操作成功") -> None:
         """
         返回HTTP成功响应
-
-        Args:
-            data: 响应数据
-            message: 成功消息
+        :param data: 响应数据
+        :param message: 成功消息
+        :return: None
         """
         response = {"status": ResponseStatus.SUCCESS, "message": message, "request_id": self._request_id}
 
@@ -145,7 +149,7 @@ class CustomHttp(tornado.web.RequestHandler):
         """
         返回WebSocket错误响应
 
-        @param msg: 错误信息
+        :param msg: 错误信息
         :return: None
         """
         logger.error(f"WebSocket错误 [{self._request_id}]: {msg}")
@@ -155,6 +159,7 @@ class CustomHttp(tornado.web.RequestHandler):
     def set_default_headers(self) -> None:
         """
         设置跨域和安全相关的HTTP响应头
+        :return: None
         """
         super().set_default_headers()
 
@@ -201,12 +206,8 @@ class CustomHttp(tornado.web.RequestHandler):
     def save(self, files: List[Dict[str, Any]]) -> List[SavedFile]:
         """
         保存上传的文件
-
-        Args:
-            files: 上传的文件列表
-
-        Returns:
-            保存的文件信息列表
+        :param files: 上传的文件列表
+        :return: 保存的文件信息列表
         """
         saved_files = []
 
@@ -248,12 +249,8 @@ class CustomHttp(tornado.web.RequestHandler):
     def notify_ws(self, data: Dict[str, Any]) -> bool:
         """
         向WebSocket客户端发送通知
-
-        Args:
-            data: 通知数据
-
-        Returns:
-            发送是否成功
+        :param data: 通知数据
+        :return: 发送是否成功
         """
         try:
             ws = self.get_ws()
@@ -315,12 +312,8 @@ class CustomHttp(tornado.web.RequestHandler):
     def validate_params(self, required_params: List[str]) -> Optional[Dict[str, Any]]:
         """
         验证请求参数是否包含所有必需的参数
-
-        Args:
-            required_params: 必需参数列表
-
-        Returns:
-            参数字典或None（如果验证失败）
+        :param required_params: 必需参数列表
+        :return 参数字典或None（如果验证失败）
         """
         params = self.extract_params()
         # 更Pythonic的列表推导式
@@ -336,11 +329,8 @@ class CustomHttp(tornado.web.RequestHandler):
         """
         异常处理装饰器
 
-        Args:
-            func: 要装饰的函数
-
-        Returns:
-            装饰后的函数
+        :param func: 要装饰的函数
+        :return: 装饰后的函数
         """
 
         @wraps(func)

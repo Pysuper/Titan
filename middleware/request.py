@@ -1,91 +1,92 @@
 """
-@Project ：Backend
-@File    ：requests.py
+@Project ：Titan
+@File    ：request.py
 @Author  ：PySuper
-@Date    ：2025/4/9 15:27
-@Desc    ：请求中间件，记录请求和响应信息
+@Date    ：2025/4/29 13:52
+@Desc    ：请求处理中间件
 """
 
 import json
 import time
+import hashlib
+import random
+import asyncio
+from typing import Callable
 
-from django.http import HttpRequest, HttpResponse
-from django.utils.deprecation import MiddlewareMixin
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
-from platform.logic.config import logic as logger
+from logic.config import get_logger
+
+logger = get_logger("middleware")
 
 
-class RequestMiddleware(MiddlewareMixin):
-    def __init__(self, get_response):
-        super().__init__(get_response)
-        self.get_response = get_response
+def add_cors_middleware(app: FastAPI) -> None:
+    """添加跨域中间件到FastAPI应用"""
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.debug("已添加跨域中间件")
 
-    def process_request(self, request: HttpRequest):
-        """
-        处理请求
-        """
-        request.start_time = time.time()
 
-        # 记录请求信息
-        request_info = {
-            "method": request.method,
-            "path": request.path,
-            "query_params": request.GET.dict(),
-            "headers": dict(request.headers),
-            "body": self._get_request_body(request),
-            "client_ip": self._get_client_ip(request),
-        }
+class RequestParserMiddleware(BaseHTTPMiddleware):
+    """请求参数解析中间件"""
 
-        logger.info(f"Incoming request: {json.dumps(request_info, indent=2)}")
-
-        return None
-
-    def process_response(self, request: HttpRequest, response: HttpResponse):
-        """
-        处理响应
-        """
-        # 计算请求处理时间
-        duration = time.time() - request.start_time
-
-        # 记录响应信息
-        response_info = {
-            "status_code": response.status_code,
-            "headers": dict(response.headers),
-            "body": self._get_response_body(response),
-            "duration": f"{duration:.2f}s",
-        }
-
-        logger.info(f"Outgoing response: {json.dumps(response_info, indent=2)}")
-
-        return response
-
-    def _get_request_body(self, request: HttpRequest):
-        """
-        获取请求体
-        """
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if request.method in ["POST", "PUT", "PATCH"]:
             try:
-                return json.loads(request.body)
+                body = await request.body()
+                if body:
+                    json_body = json.loads(body)
+                    request.state.json_body = json_body
+                    logger.debug(f"解析JSON请求体: {json_body}")
             except json.JSONDecodeError:
-                return request.body.decode("utf-8")
-        return None
+                logger.warning("无法解析请求体为JSON")
+                request.state.json_body = {}
 
-    def _get_response_body(self, response: HttpResponse):
-        """
-        获取响应体
-        """
+        query_params = dict(request.query_params)
+        request.state.query_params = query_params
+        request.state.all_params = {**getattr(request.state, "json_body", {}), **query_params}
+        return await call_next(request)
+
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    """日志记录中间件"""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        request_id = hashlib.md5(f"{time.time()}-{random.random()}".encode()).hexdigest()[:8]
+        request.state.request_id = request_id
+
+        start_time = time.time()
+        logger.info(f"[{request_id}] 开始处理 {request.method} {request.url.path} 请求")
+
+        response = await call_next(request)
+
+        process_time = time.time() - start_time
+        logger.info(
+            f"[{request_id}] 完成处理 {request.method} {request.url.path} 请求，状态码: {response.status_code}，耗时: {process_time:.4f}秒"
+        )
+
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    """超时中间件"""
+
+    def __init__(self, app, timeout: float = 10.0):
+        super().__init__(app)
+        self.timeout = timeout
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         try:
-            return json.loads(response.content)
-        except json.JSONDecodeError:
-            return response.content.decode("utf-8")
-
-    def _get_client_ip(self, request: HttpRequest):
-        """
-        获取客户端IP地址
-        """
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0]
-        else:
-            ip = request.META.get("REMOTE_ADDR")
-        return ip
+            return await asyncio.wait_for(call_next(request), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            logger.error(f"请求处理超时 (>{self.timeout}秒)")
+            return JSONResponse(status_code=504, content={"status": "error", "message": "请求处理超时", "data": None})
