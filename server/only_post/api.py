@@ -32,17 +32,13 @@ def result(result: ResultData):
         response = {
             "status": "success",
             "message": f"成功接收到结果: {result.message}",
-            # "data": result.data,
+            "data": result.data,
         }
         return response
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail={
-                "status": "error",
-                "message": str(e),
-                "data": None,
-            },
+            detail={"status": "error", "message": str(e), "data": None},
         )
 
 

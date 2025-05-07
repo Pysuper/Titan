@@ -16,6 +16,7 @@ from queue import PriorityQueue
 from typing import Any, List
 from typing import Callable, Dict
 
+import aiohttp
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -322,3 +323,45 @@ class TrafficSchedulerMiddleware(BaseHTTPMiddleware):
                     break
         finally:
             self.processing = False
+
+
+class TrafficForwardingMiddleware(BaseHTTPMiddleware):
+    """流量转发中间件"""
+
+    def __init__(self, app, target_url: str):
+        super().__init__(app)
+        self.target_url = target_url
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        if request.url.path.startswith("/api"):
+            return await self._forward_request(request)
+        return await call_next(request)
+
+    async def _forward_request(self, request: Request) -> Response:
+        async with request.body() as body:
+            async with aiohttp.ClientSession() as session:
+                async with session.request(
+                    method=request.method,
+                    url=self.target_url + request.url.path,
+                    headers=request.headers,
+                    data=body,
+                ) as response:
+                    return Response(
+                        content=await response.read(),
+                        status_code=response.status,
+                        headers=response.headers,
+                        media_type=response.content_type,
+                    )
+
+
+class RoutingMiddleware(BaseHTTPMiddleware):
+    """URL 路由中间件"""
+
+    def __init__(self, app, routes: Dict[str, Callable[[Request], Response]]):
+        super().__init__(app)
+        self.routes = routes
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        if request.url.path in self.routes:
+            return await self.routes[request.url.path](request)
+        return await call_next(request)

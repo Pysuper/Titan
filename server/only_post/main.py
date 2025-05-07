@@ -11,13 +11,12 @@ import sys
 import uvicorn
 from fastapi import FastAPI
 
-from utils.system import close_port
+from logic.config import get_logger
 from server.only_post.api import task, result, health_check
+from server.only_post.mid import add_all_middlewares
 from server.only_post.models import ResponseData
 from server.only_post.util import global_exception_handler
-
-from logic.config import get_logger
-
+from utils.system import close_port
 
 logger = get_logger("FastAPI")
 
@@ -26,6 +25,22 @@ app = FastAPI(title="Titan POST API", description="只接受POST请求的API服�
 
 # 注册异常处理器
 app.add_exception_handler(Exception, global_exception_handler)
+
+# 注册中间件
+add_all_middlewares(
+    app,
+    {
+        "allowed_ips": ["127.0.0.1"],
+        "rate_limit": 100,
+        "timeout": 30.0,
+        "api_keys": ["test-key-1", "test-key-2"],
+        "redis_url": "redis://localhost:6379/0",
+        "backends": ["http://localhost:8001", "http://localhost:8002"],
+        "priority_paths": {"/api/high": 10, "/api/low": 3},
+        "forward_rules": {"/legacy": "http://legacy-api.example.com"},
+        "redirect_rules": {"/old": "/new"},
+    },
+)
 
 # 注册路由
 app.post("/api/task", response_model=ResponseData)(task)

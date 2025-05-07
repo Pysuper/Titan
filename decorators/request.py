@@ -303,9 +303,3 @@ def timeout(seconds: int):
         return wrapper
 
     return decorator
-
-
-@retry_(retries=5, delay=2)
-def my_function():
-    #  这里是你的函数实现
-    pass

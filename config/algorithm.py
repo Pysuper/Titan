@@ -13,7 +13,7 @@ RESULT_PORT = 8000
 
 # 任务推送 URL
 TASK_PUSH_URL = f"http://{SERVER_IP}:{TASK_PORT}/api/task"
-RESULT_SEND_URL = f"http://{SERVER_IP}:{RESULT_PORT}/api/result"
+RESULT_SEND_URL = f"http://{SERVER_IP}:{TASK_PORT}/api/result"
 
 # 心跳检查 URL
 HEARTBEAT_INTERVAL = 10  # 心跳间隔（秒）

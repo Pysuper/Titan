@@ -8,8 +8,13 @@
 
 from typing import Dict, Any
 
-from middleware.all import add_cors_middleware
 from fastapi import FastAPI
+
+from fastapi.middleware.cors import CORSMiddleware
+from logic.config import logger
+from middleware import *
+
+app = FastAPI()
 
 
 # 添加所有中间件到应用
@@ -24,7 +29,9 @@ def add_all_middlewares(app: FastAPI, config: Dict[str, Any] = None) -> None:
     config = config or {}
 
     # 添加跨域中间件
-    add_cors_middleware(app)
+    app.add_middleware(
+        CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"]
+    )
 
     # 添加请求参数解析中间件
     app.add_middleware(RequestParserMiddleware)
@@ -41,15 +48,15 @@ def add_all_middlewares(app: FastAPI, config: Dict[str, Any] = None) -> None:
     # 添加安全中间件
     app.add_middleware(SecurityMiddleware, allowed_ips=config.get("allowed_ips"))
 
-    # 添加限流中间件
-    app.add_middleware(
-        RateLimitMiddleware, rate_limit=config.get("rate_limit", 100), time_window=config.get("rate_limit_window", 60)
-    )
+    # 添加限流中间件 TODO：有BUG
+    # app.add_middleware(
+    #     RateLimitMiddleware, rate_limit=config.get("rate_limit", 100), time_window=config.get("rate_limit_window", 60)
+    # )
 
     # 添加超时中间件
     app.add_middleware(TimeoutMiddleware, timeout=config.get("timeout", 30.0))
 
-    # 添加鉴权中间件
+    # 添加鉴权中间件 TODO: 可用，需要配置Token
     app.add_middleware(
         AuthenticationMiddleware, api_keys=config.get("api_keys"), exclude_paths=config.get("auth_exclude_paths")
     )
@@ -59,7 +66,7 @@ def add_all_middlewares(app: FastAPI, config: Dict[str, Any] = None) -> None:
         CacheMiddleware, redis_url=config.get("redis_url", "redis://localhost:6379/0"), ttl=config.get("cache_ttl", 300)
     )
 
-    # 添加负载均衡中间件
+    # 添加负载均衡中间件 TODO：有BUG
     app.add_middleware(
         LoadBalancerMiddleware, backends=config.get("backends"), strategy=config.get("lb_strategy", "round_robin")
     )
@@ -73,7 +80,7 @@ def add_all_middlewares(app: FastAPI, config: Dict[str, Any] = None) -> None:
     # 添加流量调度中间件
     app.add_middleware(TrafficSchedulerMiddleware, priority_paths=config.get("priority_paths"))
 
-    # 添加流量转发中间件
+    # 添加流量转发中间件 TODO：有BUG
     app.add_middleware(TrafficForwardingMiddleware, forward_rules=config.get("forward_rules"))
 
     # 添加流量压缩中间件
@@ -96,41 +103,37 @@ def add_all_middlewares(app: FastAPI, config: Dict[str, Any] = None) -> None:
     app.add_middleware(RedirectionMiddleware, redirect_rules=config.get("redirect_rules"))
 
     # 添加流量路由中间件
-    app.add_middleware(RoutingMiddleware, route_handlers=config.get("route_handlers"))
+    app.add_middleware(RoutingMiddleware, routes=config.get("routing_config"))
 
     # 添加响应结果序列化中间件（最后添加，确保它是第一个执行的中间件）
     app.add_middleware(ResponseSerializerMiddleware)
 
-    logger.info("所有中间件已添加到应用")
+    logger.debug("所有中间件已添加到应用")
 
 
 # 使用示例
-if __name__ == "__main__":
-    from fastapi import FastAPI
-
-    app = FastAPI()
-
-    # 添加所有中间件
-    add_all_middlewares(
-        app,
-        {
-            "allowed_ips": ["127.0.0.1"],
-            "rate_limit": 100,
-            "timeout": 30.0,
-            "api_keys": ["test-key-1", "test-key-2"],
-            "redis_url": "redis://localhost:6379/0",
-            "backends": ["http://localhost:8001", "http://localhost:8002"],
-            "priority_paths": {"/api/high": 10, "/api/low": 3},
-            "forward_rules": {"/legacy": "http://legacy-api.example.com"},
-            "redirect_rules": {"/old": "/new"},
-        },
-    )
-
-    @app.get("/")
-    async def root():
-        return {"message": "Hello World"}
-
-    # 启动服务器
-    import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# if __name__ == "__main__":
+#     # 添加所有中间件
+#     add_all_middlewares(
+#         app,
+#         {
+#             "allowed_ips": ["127.0.0.1"],
+#             "rate_limit": 100,
+#             "timeout": 30.0,
+#             "api_keys": ["test-key-1", "test-key-2"],
+#             "redis_url": "redis://localhost:6379/0",
+#             "backends": ["http://localhost:8001", "http://localhost:8002"],
+#             "priority_paths": {"/api/high": 10, "/api/low": 3},
+#             "forward_rules": {"/legacy": "http://legacy-api.example.com"},
+#             "redirect_rules": {"/old": "/new"},
+#         },
+#     )
+#
+#     @app.get("/")
+#     async def root():
+#         return {"message": "Hello World"}
+#
+#     # 启动服务器
+#     import uvicorn
+#
+#     uvicorn.run(app, host="0.0.0.0", port=8000)

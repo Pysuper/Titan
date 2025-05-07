@@ -27,7 +27,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
         self.ttl = ttl
         try:
             self.redis = redis.from_url(redis_url)
-            logger.info(f"已连接到Redis缓存: {redis_url}")
+            logger.debug(f"已连接到Redis缓存: {redis_url}")
         except Exception as e:
             logger.error(f"Redis连接失败: {str(e)}")
             self.redis = None

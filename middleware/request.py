@@ -6,33 +6,20 @@
 @Desc    ：请求处理中间件
 """
 
-import json
-import time
-import hashlib
-import random
 import asyncio
+import hashlib
+import json
+import random
+import time
 from typing import Callable
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi.middleware.cors import CORSMiddleware
 
 from logic.config import get_logger
 
 logger = get_logger("middleware")
-
-
-def add_cors_middleware(app: FastAPI) -> None:
-    """添加跨域中间件到FastAPI应用"""
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    logger.debug("已添加跨域中间件")
 
 
 class RequestParserMiddleware(BaseHTTPMiddleware):

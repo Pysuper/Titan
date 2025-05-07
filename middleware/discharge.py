@@ -108,7 +108,7 @@ class DecompressionMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.max_decompression_size = max_decompression_size
         self.supported_encodings = supported_encodings or ["gzip", "deflate", "br"]
-        logger.info(
+        logger.debug(
             f"解压缩中间件已初始化，支持格式: {self.supported_encodings}, 最大解压大小: {self.max_decompression_size/1024/1024:.1f}MB"
         )
 
