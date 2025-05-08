@@ -12,6 +12,41 @@ from algorithm.main import Parse
 from .models import PostData, ResultData
 
 
+"""
+# ... existing code ...
+
+async def task(
+    data: PostData,
+    parser: Parse = Depends(Parse),  # 使用FastAPI的依赖注入
+    algorithm: str = Depends(get_algorithm_config)  # 从配置获取算法名称
+):
+    try:
+        # 添加输入验证日志
+        logger.debug(f"接收到任务请求，数据量：{len(data.data)}")
+
+        # 异步执行算法
+        result = await parser.execute_algorithm_async(algorithm, data.data)
+
+        # 添加任务分发日志
+        logger.info("开始调度子任务")
+        await task_scheduler.dispatch(result)
+
+        return {"status": "success", "message": "任务已进入处理队列"}
+
+    except ValidationError as e:
+        logger.warning(f"参数验证失败: {str(e)}")
+        raise HTTPException(status_code=400, detail={"status": "error", "message": "无效的请求参数"})
+    except TimeoutError as e:
+        logger.error(f"任务处理超时: {str(e)}")
+        raise HTTPException(status_code=504, detail={"status": "error", "message": "处理超时"})
+    except Exception as e:
+        logger.exception("未预期的服务器错误")
+        raise HTTPException(status_code=500, detail={"status": "error", "message": "内部服务器错误"})
+
+# ... existing code ...
+"""
+
+
 # POST请求处理路由
 def task(data: PostData):
     try:
