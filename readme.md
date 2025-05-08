@@ -1,4 +1,21 @@
 # Algorithms Platform
+
+```bash
+INFO:     Will watch for changes in these directories: ['D:\\WorkFile\\Project\\PySuper\\Python\\Titan']
+INFO:     Uvicorn running on http://127.0.0.1:9003 (Press CTRL+C to quit)
+INFO:     Started reloader process [48416] using StatReload
+INFO:     Started server process [73440]
+INFO:     Waiting for application startup.
+2025-05-08 13:49:20 | DEBUG    | TiTan | server.only_post.mid:add_all_middlewares:120 - 所有中间件已添加到应用
+INFO:     Application startup complete.
+
+2025-05-08 13:49:24 | DEBUG    | middleware | middleware.request:dispatch:35 - 解析JSON请求体: {'message': 'A', 'data': {'a': '1', 'b': '2'}}
+2025-05-08 13:49:24 | INFO     | decorators | decorators.request:_send_result:89 - 正在发送结果到 http://localhost:9003/api/result，第 1 次尝试...
+2025-05-08 13:49:26 | DEBUG    | middleware | middleware.request:dispatch:35 - 解析JSON请求体: {'status': 'ok', 'message': 'A', 'data': {'a': '1', 'b': '2'}, 'timestamp': 1746683364.649206}
+2025-05-08 13:49:26 | INFO     | decorators | decorators.request:_send_result:96 - 发送成功，服务器响应: {'status': 'success', 'message': '成功接收到结果: A', 'data': {'a': '1', 'b': '2'}}
+INFO:     127.0.0.1:11560 - "POST /api/result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11553 - "POST /api/task HTTP/1.1" 200 OK
+```
 > 算法分发平台
 
 - 根据算法名称，参数，输出URL，调用不同的算法实现，并返回结果到指定地址。

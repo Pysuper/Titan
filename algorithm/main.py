@@ -49,7 +49,7 @@ class Parse:
     @log_exception
     # @log_execution_time
     # @log_function_call
-    @send_to_url(url=RESULT_SEND_URL)  # 发送结果到指定url
+    # @send_to_url(url=RESULT_SEND_URL)  # 发送结果到指定url
     def execute_algorithm(self, algorithm_name, params):
         """
         执行算法

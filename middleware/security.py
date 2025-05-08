@@ -29,14 +29,16 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         self.allowed_ips = allowed_ips or []
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        logger = get_logger("安全中间件")
+        logger.debug(f"【安全中间件】 请求路径: {request.url.path}")
         client_ip = request.client.host if request.client else None
         if self.allowed_ips and client_ip not in self.allowed_ips:
-            logger.warning(f"拒绝来自 {client_ip} 的未授权访问")
+            logger.warning(f"【安全中间件】 拒绝来自 {client_ip} 的未授权访问")
             return JSONResponse(status_code=403, content={"status": "error", "message": "访问被拒绝", "data": None})
 
         user_agent = request.headers.get("user-agent", "")
         if not user_agent or "bot" in user_agent.lower():
-            logger.warning(f"可疑的User-Agent: {user_agent}")
+            logger.warning(f"【安全中间件】 可疑的User-Agent: {user_agent}")
             return JSONResponse(status_code=403, content={"status": "error", "message": "访问被拒绝", "data": None})
 
         return await call_next(request)

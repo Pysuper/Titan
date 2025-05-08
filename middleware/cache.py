@@ -16,7 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from logic.config import get_logger
 
-logger = get_logger("middleware")
+logger = get_logger("缓存中间件")
 
 
 class CacheMiddleware(BaseHTTPMiddleware):
@@ -33,8 +33,8 @@ class CacheMiddleware(BaseHTTPMiddleware):
             self.redis = None
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        if request.method != "GET" or not self.redis:
-            return await call_next(request)
+        # if request.method != "GET" or not self.redis:
+        #     return await call_next(request)
 
         cache_key = f"titan:cache:{request.url.path}:{request.url.query}"
 

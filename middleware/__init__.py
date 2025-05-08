@@ -28,6 +28,6 @@ from .message import (
     RoutingMiddleware,
 )
 
-from .request import RequestParserMiddleware, LoggingMiddleware, TimeoutMiddleware
+from .request import RequestParserMiddleware, LoggingMiddleware, RateLimitMiddleware, TimeoutMiddleware
 
 from .security import SecurityMiddleware, AuthenticationMiddleware, EncryptionMiddleware, DecryptionMiddleware

@@ -10,7 +10,6 @@ import asyncio
 import json
 import threading
 import time
-import traceback
 from collections import deque
 from queue import PriorityQueue
 from typing import Any, List
@@ -205,34 +204,86 @@ class ResponseSerializerMiddleware(BaseHTTPMiddleware):
 
 
 class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
-    """异常处理中间件"""
+    """
+    异常处理中间件
+    1、捕获所有异常并返回统一的错误响应。
+    2、记录异常信息和堆栈跟踪。
+    3、返回错误响应时包含错误码和错误信息。
+    4、可以根据不同的异常类型返回不同的错误码和错误信息。
+    5、可以根据不同的环境（开发、测试、生产）返回不同的错误信息。
+    6、可以根据不同的请求路径返回不同的错误信息。
+
+    TODO: 和全局异常处理器功能相似，但有以下区别：
+    1、全局异常处理器是在整个应用程序中捕获所有异常的入口点，而中间件可以在请求处理的不同阶段捕获异常。
+    2、全局异常处理器可以返回自定义的响应，而中间件只能返回默认的响应。
+    3、全局异常处理器可以根据不同的环境（开发、测试、生产）返回不同的响应，而中间件只能返回默认的响应。
+    """
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         try:
             return await call_next(request)
         except Exception as e:
-            logger.error(f"请求处理异常: {str(e)}")
-            logger.debug(traceback.format_exc())
+            logger.error(f"【异常处理中间件】 请求处理异常: {str(e)}")
+
+            # 输出堆栈跟踪信息
+            # logger.debug(traceback.format_exc())
             return JSONResponse(
-                status_code=500, content={"status": "error", "message": f"服务器内部错误: {str(e)}", "data": None}
+                status_code=500,
+                content={"status": "error", "message": f"服务器内部错误: {str(e)}", "data": None},
             )
 
 
 class PerformanceMonitorMiddleware(BaseHTTPMiddleware):
     """性能监控中间件"""
 
+    # 定义性能等级阈值（秒）
+    PERFORMANCE_THRESHOLDS = {
+        "normal": 0.5,  # 正常请求
+        "slow": 1.0,  # 慢请求
+        "very_slow": 2.0,  # 非常慢的请求
+    }
+
+    # @suppress_errors
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        logger = get_logger("性能监控中间件")
         start_time = time.time()
         response = await call_next(request)
         process_time = time.time() - start_time
 
+        # 记录处理时间到响应头
         response.headers["X-Process-Time"] = str(process_time)
-        logger.debug(f"请求 {request.method} {request.url.path} 处理时间: {process_time:.4f}秒")
 
-        if process_time > 1.0:
-            logger.warning(f"慢请求: {request.method} {request.url.path} 处理时间: {process_time:.4f}秒")
+        # 获取请求信息
+        request_info = f"{request.method} {request.url.path}"
+
+        # 根据处理时间分级记录日志
+        if process_time <= self.PERFORMANCE_THRESHOLDS["normal"]:
+            logger.debug(f"【性能监控】 请求 {request_info} 处理时间: {process_time:.4f}秒")
+        elif process_time <= self.PERFORMANCE_THRESHOLDS["slow"]:
+            logger.info(f"【性能监控】 慢请求: {request_info} 处理时间: {process_time:.4f}秒")
+        elif process_time <= self.PERFORMANCE_THRESHOLDS["very_slow"]:
+            logger.warning(f"【性能监控】 较慢请求: {request_info} 处理时间: {process_time:.4f}秒")
+        else:
+            logger.error(f"【性能监控】 极慢请求: {request_info} 处理时间: {process_time:.4f}秒")
+
+        # 添加额外的性能指标到响应头
+        self._add_performance_metrics(response, process_time)
 
         return response
+
+    def _add_performance_metrics(self, response: Response, process_time: float):
+        """添加额外的性能指标到响应头"""
+        # 性能等级
+        if process_time <= self.PERFORMANCE_THRESHOLDS["normal"]:
+            performance_level = "normal"
+        elif process_time <= self.PERFORMANCE_THRESHOLDS["slow"]:
+            performance_level = "slow"
+        elif process_time <= self.PERFORMANCE_THRESHOLDS["very_slow"]:
+            performance_level = "very_slow"
+        else:
+            performance_level = "critical"
+
+        response.headers["X-Performance-Level"] = performance_level
 
 
 class TrafficMonitorMiddleware(BaseHTTPMiddleware):

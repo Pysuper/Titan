@@ -18,7 +18,9 @@ import aiohttp
 import requests
 from requests.exceptions import RequestException
 
-from logic.config import logger
+from logic.config import get_logger
+
+logger = get_logger("decorators")
 
 
 def send_to_url(url: str, max_retries: int = 3, retry_interval: int = 2, timeout: int = 10):
@@ -84,20 +86,20 @@ def _send_result(result: Any, url: str, max_retries: int = 3, retry_interval: in
     # 重试逻辑
     for attempt in range(1, max_retries + 1):
         try:
-            logger.info(f"正在发送结果到 {url}，第 {attempt} 次尝试...")
+            logger.debug(f"正在发送结果到 {url}，第 {attempt} 次尝试...")
             response = requests.post(url=url, json=payload, headers=headers, timeout=timeout)
 
             # 检查响应状态码
             if response.status_code in (200, 201, 202):
                 try:
                     response_data = response.json()
-                    logger.info(f"发送成功，服务器响应: {response_data}")
+                    logger.debug(f"发送成功，服务器响应: {response_data}")
                     return True
                 except json.JSONDecodeError:
                     logger.error(f"发送成功，但服务器响应不是有效的JSON: {response.text}")
                     return True
             else:
-                logger.info(f"请求失败，状态码: {response.status_code}, 响应: {response.text}")
+                logger.debug(f"请求失败，状态码: {response.status_code}, 响应: {response.text}")
 
                 # 如果是最后一次尝试，返回失败
                 if attempt == max_retries:
@@ -184,7 +186,7 @@ def _method_retry_decorator(max_retries: int, retry_interval: int, timeout: int)
         def wrapper(self, url: str, params: Dict, *args, **kwargs) -> Any:
             for attempt in range(1, max_retries + 1):
                 try:
-                    logger.info(f"发送{func.__name__.upper()}请求到 {url}，第 {attempt} 次尝试...")
+                    logger.debug(f"发送{func.__name__.upper()}请求到 {url}，第 {attempt} 次尝试...")
                     # 将timeout参数传递给原始函数
                     kwargs["timeout"] = kwargs.get("timeout", timeout)
                     result = func(self, url, params, *args, **kwargs)
@@ -243,7 +245,7 @@ def send_to_url_util(url: Optional[str] = None):
                 try:
                     response = requests.post(url, json=result)
                     response.raise_for_status()
-                    logger.info(f"Successfully sent result to {url}")
+                    logger.debug(f"Successfully sent result to {url}")
                 except Exception as e:
                     logger.exception(f"Error sending result to {url}: {str(e)}")
 

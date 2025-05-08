@@ -31,10 +31,11 @@ add_all_middlewares(
     app,
     {
         "allowed_ips": ["127.0.0.1"],
+        # "allowed_ips": ["pyro.affectai.cn", "mood.affectai.cn"],
         "rate_limit": 100,
-        "timeout": 30.0,
+        "timeout": 3.0,
         "api_keys": ["test-key-1", "test-key-2"],
-        "redis_url": "redis://localhost:6379/0",
+        "redis_url": "redis://:Affect_PySuper@1.92.200.169:3218/13",
         "backends": ["http://localhost:8001", "http://localhost:8002"],
         "priority_paths": {"/api/high": 10, "/api/low": 3},
         "forward_rules": {"/legacy": "http://legacy-api.example.com"},
