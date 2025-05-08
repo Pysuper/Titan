@@ -108,7 +108,7 @@ class DecompressionMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.max_decompression_size = max_decompression_size
         self.supported_encodings = supported_encodings or ["gzip", "deflate", "br"]
-        logger.info(
+        logger.debug(
             f"解压缩中间件已初始化，支持格式: {self.supported_encodings}, 最大解压大小: {self.max_decompression_size/1024/1024:.1f}MB"
         )
 
@@ -218,7 +218,7 @@ class LoadBalancerMiddleware(BaseHTTPMiddleware):
         self.backends = backends or []
         self.strategy = strategy
         self.current_backend_index = 0
-        logger.info(f"负载均衡中间件已初始化，后端服务器: {self.backends}, 策略: {self.strategy}")
+        logger.debug(f"负载均衡中间件已初始化，后端服务器: {self.backends}, 策略: {self.strategy}")
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if not self.backends:
